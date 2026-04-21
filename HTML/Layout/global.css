@@ -218,7 +218,7 @@ P       /* Standard paragraph */
 
 .discourses_heading
   {
-  color:black;
+  color: var(--text);
   font-size:110%;
   font-weight:bold;
   }
