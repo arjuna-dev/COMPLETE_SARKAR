@@ -679,7 +679,10 @@
           if (!pool.length) return;
           var pick = pool[Math.floor(Math.random() * pool.length)];
           if (window.parent !== window) {
-            window.parent.postMessage({ type: "ee7-navigate", href: pick }, "*");
+            window.parent.postMessage(
+              { type: "ee7-navigate", href: pick },
+              "*",
+            );
           } else {
             window.location.href = pick;
           }
@@ -691,7 +694,10 @@
           if (!link) return;
           if (window.parent === window) return;
           e.preventDefault();
-          window.parent.postMessage({ type: "ee7-navigate", href: link.href }, "*");
+          window.parent.postMessage(
+            { type: "ee7-navigate", href: link.href },
+            "*",
+          );
         });
 
         window.addEventListener("load", function () {
