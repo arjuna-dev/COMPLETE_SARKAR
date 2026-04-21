@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Electronic Edition — Works of P.R. Sarkar</title>
+    <style>
+      /* ── Design tokens ──────────────────────────────────────────── */
+      :root[data-theme="dark"] {
+        --bg: #2e2a24;
+        --surface: #352f28;
+        --sidebar-bg: #28231e;
+        --text: #ddd5c8;
+        --text-dim: #8c8078;
+        --accent: #e07820;
+        --accent-dim: rgba(224, 120, 32, 0.15);
+        --border: #3e3228;
+        --hover: #352f28;
+        --header-bg: #28231e;
+      }
+      :root[data-theme="light"] {
+        --bg: #f7f4f0;
+        --surface: #ffffff;
+        --sidebar-bg: #ede9e3;
+        --text: #1a160e;
+        --text-dim: #9a8e80;
+        --accent: #c06010;
+        --accent-dim: rgba(192, 96, 16, 0.12);
+        --border: #d5cfc6;
+        --hover: #e4dfd7;
+        --header-bg: #e8e3dc;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Tahoma, "Arial Unicode MS", Geneva, sans-serif;
+        font-size: 10pt;
+        line-height: 1.4;
+        transition:
+          background-color 0.2s,
+          color 0.2s;
+      }
+
+      /* ── Layout shell ───────────────────────────────────────────── */
+      #shell {
+        display: flex;
+        height: 100vh;
+        height: 100svh;
+      }
+
+      /* ── Sidebar ────────────────────────────────────────────────── */
+      #sidebar {
+        width: 244px;
+        flex-shrink: 0;
+        background: var(--sidebar-bg);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: width 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 50;
+      }
+      #sidebar.collapsed {
+        width: 0;
+      }
+
+      /* Sidebar wordmark / home link */
+      #sidebar-brand {
+        padding: 16px 18px 13px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      #brand-link {
+        display: block;
+        text-decoration: none;
+        color: var(--text);
+      }
+      #brand-title {
+        font-size: 11pt;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        color: var(--text);
+        line-height: 1.2;
+      }
+      #brand-sub {
+        font-size: 7.5pt;
+        color: var(--text-dim);
+        margin-top: 2px;
+        white-space: nowrap;
+        letter-spacing: 0.01em;
+      }
+
+      /* Nav scroll area */
+      #sidebar-nav {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 8px 0 20px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+
+      .nav-label {
+        padding: 12px 18px 4px;
+        font-size: 6.5pt;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        white-space: nowrap;
+      }
+
+      .nav-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 8px 0;
+      }
+
+      .nav-link {
+        display: flex;
+        align-items: center;
+        padding: 7px 18px 7px 16px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 11pt;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border-left: 2px solid transparent;
+        transition:
+          background 0.14s,
+          border-color 0.14s,
+          color 0.14s;
+        cursor: pointer;
+        background: none;
+        border-top: none;
+        border-right: none;
+        border-bottom: none;
+        width: 100%;
+        text-align: left;
+        font-family: inherit;
+        line-height: 1.4;
+      }
+      .nav-link:hover {
+        background: var(--hover);
+        color: var(--accent);
+      }
+      .nav-link.active {
+        border-left-color: var(--accent);
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+
+      /* Accordion (Ásanas) */
+      .accordion-btn {
+        justify-content: space-between;
+      }
+      .accordion-btn .chevron {
+        color: var(--text-dim);
+        font-size: 9pt;
+        margin-left: 6px;
+        flex-shrink: 0;
+        transition: transform 0.22s;
+      }
+      .accordion-btn.open .chevron {
+        transform: rotate(90deg);
+      }
+      .accordion-body {
+        overflow: hidden;
+        max-height: 0;
+        transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .accordion-body.open {
+        max-height: 1200px;
+      }
+      .accordion-body .nav-link {
+        padding-left: 28px;
+        font-size: 8.5pt;
+      }
+
+      /* ── Main pane ──────────────────────────────────────────────── */
+      #main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+
+      /* Thin top bar — just burger + theme toggle */
+      #topbar {
+        display: flex;
+        align-items: center;
+        height: 38px;
+        padding: 0 10px;
+        background: var(--header-bg);
+        border-bottom: 1px solid var(--border);
+        gap: 4px;
+        flex-shrink: 0;
+        transition: background-color 0.2s;
+      }
+      #topbar-spacer {
+        flex: 1;
+      }
+
+      .bar-btn {
+        background: none;
+        border: none;
+        color: var(--text-dim);
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          color 0.14s,
+          background 0.14s;
+        line-height: 1;
+      }
+      .bar-btn:hover {
+        color: var(--accent);
+        background: var(--accent-dim);
+      }
+
+      /* iframe */
+      #client-frame {
+        flex: 1;
+        border: none;
+        display: block;
+        width: 100%;
+        background: var(--bg);
+      }
+
+      /* ── Overlay backdrop (mobile only) ────────────────────────── */
+      #sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 49;
+        opacity: 0;
+        transition: opacity 0.26s;
+      }
+
+      /* ── Responsive ─────────────────────────────────────────────── */
+      @media (max-width: 700px) {
+        /* Sidebar becomes a fixed overlay drawer */
+        #sidebar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          height: 100%;
+          height: 100svh;
+          width: 270px;
+          z-index: 50;
+          /* Start collapsed off-screen (translate instead of width: 0
+             so sidebar content isn't clipped while animating) */
+          transform: translateX(-100%);
+          transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* Open state on mobile */
+        #sidebar.mobile-open {
+          transform: translateX(0);
+        }
+        /* Keep collapsed class working on desktop but ignore on mobile */
+        #sidebar.collapsed {
+          width: 270px;
+          transform: translateX(-100%);
+        }
+        /* Backdrop shown when drawer is open */
+        #sidebar-backdrop {
+          display: block;
+          pointer-events: none;
+        }
+        #sidebar-backdrop.visible {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        /* Main fills full width — sidebar floats above */
+        #main {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="shell">
+      <!-- backdrop for mobile drawer -->
+      <div id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+      <!-- ───────────── Sidebar ───────────── -->
+      <nav id="sidebar">
+        <div id="sidebar-brand">
+          <a
+            id="brand-link"
+            href="search.html"
+            target="Client"
+            onclick="setActive(null)"
+          >
+            <div id="brand-title">EE 7.5</div>
+            <div id="brand-sub">Works of P.R. Sarkar</div>
+          </a>
+        </div>
+
+        <div id="sidebar-nav">
+          <div class="nav-label">Browse</div>
+
+          <a
+            class="nav-link"
+            href="Navigation/books_tocs.html"
+            target="Client"
+            onclick="setActive(this)"
+            >Books</a
+          >
+          <a
+            class="nav-link"
+            href="Navigation/alphabetical.html"
+            target="Client"
+            onclick="setActive(this)"
+            >Discourses</a
+          >
+          <a
+            class="nav-link"
+            href="Navigation/chronological.html"
+            target="Client"
+            onclick="setActive(this)"
+            >Chronological</a
+          >
+
+          <!-- Ásanas accordion -->
+          <button
+            class="nav-link accordion-btn"
+            onclick="toggleAccordion(this)"
+            type="button"
+          >
+            <span>Ásanas</span>
+            <span class="chevron">›</span>
+          </button>
+          <div class="accordion-body">
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..64"
+              target="Client"
+              onclick="setActive(this)"
+              >Ardhakurmakásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..63"
+              target="Client"
+              onclick="setActive(this)"
+              >Ardhashivásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..49"
+              target="Client"
+              onclick="setActive(this)"
+              >Baddha padmásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..61"
+              target="Client"
+              onclick="setActive(this)"
+              >Bhastrikásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..92"
+              target="Client"
+              onclick="setActive(this)"
+              >Bhávásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..59"
+              target="Client"
+              onclick="setActive(this)"
+              >Bhújauṋgásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..42"
+              target="Client"
+              onclick="setActive(this)"
+              >Cakrásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..100"
+              target="Client"
+              onclick="setActive(this)"
+              >Dvisamakońásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..99"
+              target="Client"
+              onclick="setActive(this)"
+              >Garud́ásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..51"
+              target="Client"
+              onclick="setActive(this)"
+              >Gomukhásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..98"
+              target="Client"
+              onclick="setActive(this)"
+              >Granthimuktásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..71"
+              target="Client"
+              onclick="setActive(this)"
+              >Jat́ila utkat́ásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..62"
+              target="Client"
+              onclick="setActive(this)"
+              >Jánushirásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..88"
+              target="Client"
+              onclick="setActive(this)"
+              >Jiṋánásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..76"
+              target="Client"
+              onclick="setActive(this)"
+              >Karmásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..50"
+              target="Client"
+              onclick="setActive(this)"
+              >Kukkut́ásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..56"
+              target="Client"
+              onclick="setActive(this)"
+              >Kúrmakásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..102"
+              target="Client"
+              onclick="setActive(this)"
+              >Mańd́ukásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..34"
+              target="Client"
+              onclick="setActive(this)"
+              >Matsyamudrá</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..35"
+              target="Client"
+              onclick="setActive(this)"
+              >Matsyásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..36"
+              target="Client"
+              onclick="setActive(this)"
+              >Matsyendrásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..55"
+              target="Client"
+              onclick="setActive(this)"
+              >Mayúrásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..43"
+              target="Client"
+              onclick="setActive(this)"
+              >Naokásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..73"
+              target="Client"
+              onclick="setActive(this)"
+              >Padahastásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..75"
+              target="Client"
+              onclick="setActive(this)"
+              >Padmásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..45"
+              target="Client"
+              onclick="setActive(this)"
+              >Parvatásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..57"
+              target="Client"
+              onclick="setActive(this)"
+              >Sahaja utkat́ásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..30"
+              target="Client"
+              onclick="setActive(this)"
+              >Sarváuṋgásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..58"
+              target="Client"
+              onclick="setActive(this)"
+              >Shalabhásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..60"
+              target="Client"
+              onclick="setActive(this)"
+              >Shasháuṋgásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..74"
+              target="Client"
+              onclick="setActive(this)"
+              >Shavásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..46"
+              target="Client"
+              onclick="setActive(this)"
+              >Shivásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..48"
+              target="Client"
+              onclick="setActive(this)"
+              >Siddhásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..101"
+              target="Client"
+              onclick="setActive(this)"
+              >Tejasásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..66"
+              target="Client"
+              onclick="setActive(this)"
+              >Tuládańd́ásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..69"
+              target="Client"
+              onclick="setActive(this)"
+              >Uśt́rásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..70"
+              target="Client"
+              onclick="setActive(this)"
+              >Utkat́a kúrmakásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..44"
+              target="Client"
+              onclick="setActive(this)"
+              >Utkat́a pashcimottánásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..72"
+              target="Client"
+              onclick="setActive(this)"
+              >Utkat́a vajrásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..47"
+              target="Client"
+              onclick="setActive(this)"
+              >Vajrásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..41"
+              target="Client"
+              onclick="setActive(this)"
+              >Viirásana</a
+            >
+            <a
+              class="nav-link"
+              href="Books/Caryacarya_3.html#9..65"
+              target="Client"
+              onclick="setActive(this)"
+              >Yogásana or yogamudrá</a
+            >
+          </div>
+
+          <div class="nav-divider"></div>
+          <div class="nav-label">Reference</div>
+
+          <a
+            class="nav-link"
+            href="Info/RomanSamskrta.html"
+            target="Client"
+            onclick="setActive(this)"
+            >Roman Sanskrit</a
+          >
+          <a
+            class="nav-link"
+            href="Info/Emblem.html"
+            target="Client"
+            onclick="setActive(this)"
+            >Ananda Marga Emblem</a
+          >
+        </div>
+        <!-- /sidebar-nav -->
+      </nav>
+      <!-- /sidebar -->
+
+      <!-- ───────────── Main ───────────── -->
+      <div id="main">
+        <div id="topbar">
+          <!-- Burger -->
+          <button
+            class="bar-btn"
+            id="burger-btn"
+            onclick="toggleSidebar()"
+            title="Toggle navigation"
+            aria-label="Toggle navigation"
+          >
+            <svg
+              width="18"
+              height="14"
+              viewBox="0 0 18 14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+            >
+              <line x1="1" y1="1" x2="17" y2="1" />
+              <line x1="1" y1="7" x2="17" y2="7" />
+              <line x1="1" y1="13" x2="17" y2="13" />
+            </svg>
+          </button>
+
+          <div id="topbar-spacer"></div>
+
+          <!-- Theme toggle -->
+          <button
+            class="bar-btn"
+            id="theme-btn"
+            onclick="toggleTheme()"
+            title="Toggle light/dark"
+            aria-label="Toggle theme"
+          >
+            <!-- Moon icon (shown in dark mode) -->
+            <svg
+              id="icon-moon"
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+            >
+              <path
+                d="M14.5 10.5A6.5 6.5 0 0 1 5.5 1.5a.5.5 0 0 0-.65-.48A7 7 0 1 0 15 11.15a.5.5 0 0 0-.5-.65z"
+              />
+            </svg>
+            <!-- Sun icon (shown in light mode) -->
+            <svg
+              id="icon-sun"
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              style="display: none"
+            >
+              <circle cx="8" cy="8" r="3" />
+              <line
+                x1="8"
+                y1="1"
+                x2="8"
+                y2="3"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <line
+                x1="8"
+                y1="13"
+                x2="8"
+                y2="15"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <line
+                x1="1"
+                y1="8"
+                x2="3"
+                y2="8"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <line
+                x1="13"
+                y1="8"
+                x2="15"
+                y2="8"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <line
+                x1="3"
+                y1="3"
+                x2="4.4"
+                y2="4.4"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <line
+                x1="11.6"
+                y1="11.6"
+                x2="13"
+                y2="13"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <line
+                x1="13"
+                y1="3"
+                x2="11.6"
+                y2="4.4"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <line
+                x1="4.4"
+                y1="11.6"
+                x2="3"
+                y2="13"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <!-- /topbar -->
+
+        <iframe
+          id="client-frame"
+          name="Client"
+          src="search.html"
+          allowfullscreen
+          frameborder="0"
+          title="Content"
+        ></iframe>
+      </div>
+      <!-- /main -->
+    </div>
+    <!-- /shell -->
+
+    <script>
+      (function () {
+        "use strict";
+
+        var THEME_KEY = "ee7-theme";
+
+        // ── Theme ──────────────────────────────────────────────────────
+        function applyTheme(theme) {
+          document.documentElement.setAttribute("data-theme", theme);
+          var dark = theme === "dark";
+          document.getElementById("icon-moon").style.display = dark
+            ? ""
+            : "none";
+          document.getElementById("icon-sun").style.display = dark
+            ? "none"
+            : "";
+          try {
+            localStorage.setItem(THEME_KEY, theme);
+          } catch (e) {}
+          // propagate to content iframe
+          var f = document.getElementById("client-frame");
+          if (f && f.contentWindow) {
+            try {
+              f.contentWindow.postMessage(
+                { type: "ee7-theme", theme: theme },
+                "*",
+              );
+            } catch (e) {}
+          }
+        }
+
+        function toggleTheme() {
+          var cur = document.documentElement.getAttribute("data-theme");
+          applyTheme(cur === "dark" ? "light" : "dark");
+        }
+        window.toggleTheme = toggleTheme;
+
+        // restore saved theme (default: dark)
+        var saved = "dark";
+        try {
+          saved = localStorage.getItem(THEME_KEY) || "dark";
+        } catch (e) {}
+        applyTheme(saved);
+
+        // ── Frame persistence (survives hot-reload / page refresh) ─────
+        var frame = document.getElementById("client-frame");
+        (function () {
+          var last = null;
+          try {
+            last = sessionStorage.getItem("ee7-last-frame");
+          } catch (e) {}
+          if (last && last !== "about:blank") frame.src = last;
+        })();
+
+        // propagate theme on every iframe navigation + persist URL
+        frame.addEventListener("load", function () {
+          try {
+            var href = this.contentWindow.location.href;
+            if (href && href !== "about:blank") {
+              sessionStorage.setItem("ee7-last-frame", href);
+            }
+          } catch (e) {}
+          var theme = document.documentElement.getAttribute("data-theme");
+          try {
+            this.contentWindow.postMessage(
+              { type: "ee7-theme", theme: theme },
+              "*",
+            );
+          } catch (e) {}
+        });
+
+        // ── Sidebar ─────────────────────────────────────────────────
+        var MOBILE_BP = 700;
+        var sidebar = document.getElementById("sidebar");
+        var backdrop = document.getElementById("sidebar-backdrop");
+
+        function isMobile() {
+          return window.innerWidth <= MOBILE_BP;
+        }
+
+        function openMobileDrawer() {
+          sidebar.classList.add("mobile-open");
+          backdrop.classList.add("visible");
+          document.body.style.overflow = "hidden";
+        }
+        function closeMobileDrawer() {
+          sidebar.classList.remove("mobile-open");
+          backdrop.classList.remove("visible");
+          document.body.style.overflow = "";
+        }
+
+        function toggleSidebar() {
+          if (isMobile()) {
+            if (sidebar.classList.contains("mobile-open")) {
+              closeMobileDrawer();
+            } else {
+              openMobileDrawer();
+            }
+          } else {
+            sidebar.classList.toggle("collapsed");
+          }
+        }
+        window.toggleSidebar = toggleSidebar;
+
+        // Close mobile drawer on any nav-link click (content loads in iframe)
+        sidebar.addEventListener("click", function (e) {
+          if (isMobile() && e.target.closest(".nav-link")) {
+            closeMobileDrawer();
+          }
+        });
+
+        // On resize crossing breakpoint, reset sidebar state cleanly
+        window.addEventListener("resize", function () {
+          if (!isMobile()) {
+            closeMobileDrawer(); // strip mobile classes
+          }
+        });
+
+        // ── Accordion ─────────────────────────────────────────────────
+        function toggleAccordion(btn) {
+          btn.classList.toggle("open");
+          var body = btn.nextElementSibling;
+          body.classList.toggle("open");
+        }
+        window.toggleAccordion = toggleAccordion;
+
+        // ── Active nav state ──────────────────────────────────────────
+        function setActive(el) {
+          document.querySelectorAll(".nav-link").forEach(function (n) {
+            n.classList.remove("active");
+          });
+          if (el) el.classList.add("active");
+        }
+        window.setActive = setActive;
+      })();
+    </script>
+  </body>
+</html>
