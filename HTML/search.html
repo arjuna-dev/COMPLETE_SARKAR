@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Search — EE 7.5</title>
     <script src="search_index.js"></script>
+    <script src="filter_sets.js"></script>
     <style>
       :root[data-theme="dark"] {
         --bg: #2e2a24;
@@ -248,6 +249,40 @@
         color: var(--accent);
         background: var(--accent-dim);
       }
+
+      /* ── Filter chips ──────────────────────────────────────── */
+      #filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+        margin-top: 12px;
+      }
+      #filter-bar.hidden {
+        display: none;
+      }
+      .filter-chip {
+        padding: 4px 14px;
+        border-radius: 14px;
+        border: 1.5px solid var(--border);
+        background: none;
+        color: var(--text-dim);
+        font-family: inherit;
+        font-size: 8pt;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+        white-space: nowrap;
+      }
+      .filter-chip:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .filter-chip.active {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-weight: 600;
+      }
     </style>
   </head>
   <body>
@@ -289,6 +324,7 @@
           Type at least 3 characters &nbsp;·&nbsp; diacritics ignored:
           <em>siva</em> finds <em>Śiva</em>
         </p>
+        <div id="filter-bar" class="hidden" aria-label="Filter by set"></div>
       </div>
 
       <div id="status"></div>
@@ -327,6 +363,61 @@
         // State for incremental loading
         var _allResults = [],
           _shownCount = 0;
+
+        // ── Filter state ────────────────────────────────────────────
+        // null = no filter (all discourses). Otherwise an Object keyed
+        // by the basename of allowed files for O(1) lookup.
+        var _activeFilter = null;
+        var _activeFilterName = null;
+
+        function buildFilterBar() {
+          var bar = document.getElementById("filter-bar");
+          if (typeof filterSets === "undefined") return;
+          var keys = Object.keys(filterSets);
+          // Only show the bar if there's more than just "All"
+          if (keys.length <= 1) return;
+          bar.classList.remove("hidden");
+          // Default: first key active
+          _activeFilterName = keys[0];
+          _activeFilter = makeFilterLookup(filterSets[keys[0]]);
+          keys.forEach(function (name) {
+            var btn = document.createElement("button");
+            btn.className = "filter-chip" + (name === _activeFilterName ? " active" : "");
+            btn.textContent = name;
+            btn.onclick = function () {
+              _activeFilterName = name;
+              _activeFilter = makeFilterLookup(filterSets[name]);
+              bar.querySelectorAll(".filter-chip").forEach(function (c) {
+                c.classList.toggle("active", c.textContent === name);
+              });
+              // Re-run current query with new filter
+              var q = document.getElementById("search-input").value;
+              if (normalize(q.trim()).length >= MIN_QUERY) {
+                _allResults = search(q);
+                _shownCount = Math.min(PAGE_SIZE, _allResults.length);
+                document.getElementById("results").innerHTML =
+                  renderGroups(_allResults.slice(0, _shownCount));
+                updateShowMore();
+                updateStatus();
+              }
+            };
+            bar.appendChild(btn);
+          });
+        }
+
+        function makeFilterLookup(list) {
+          if (!list) return null; // null = all
+          var obj = Object.create(null);
+          for (var i = 0; i < list.length; i++) obj[list[i]] = true;
+          return obj;
+        }
+
+        function inFilter(filePath) {
+          if (!_activeFilter) return true;
+          // entry.f is like "Discourses/Some_Discourse.html" — match on basename
+          var base = filePath.split("/").pop();
+          return !!_activeFilter[base];
+        }
 
         function normalize(s) {
           return s
@@ -370,8 +461,9 @@
           var map = Object.create(null),
             order = [];
           for (var i = 0; i < searchIndex.length; i++) {
-            var entry = searchIndex[i],
-              normX = normalize(entry.x),
+            var entry = searchIndex[i];
+            if (!inFilter(entry.f)) continue;
+            var normX = normalize(entry.x),
               pos = findAll(normX, normQ);
             if (!pos.length) continue;
             if (!map[entry.f]) {
@@ -501,6 +593,7 @@
           }, DEBOUNCE_MS);
         }
         window.addEventListener("load", function () {
+          buildFilterBar();
           var inp = document.getElementById("search-input");
           inp.addEventListener("input", onInput);
           inp.focus();
