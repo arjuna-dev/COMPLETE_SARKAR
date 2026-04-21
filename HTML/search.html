@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Search — EE 7.5</title>
+    <title>Search — EE 7+</title>
     <script src="search_index.js"></script>
     <script src="filter_sets.js"></script>
     <style>
@@ -121,6 +121,14 @@
         position: relative;
         max-width: 560px;
         margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      #search-input-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 0;
       }
       #search-input {
         width: 100%;
@@ -154,6 +162,31 @@
         transform: translateY(-50%);
         color: var(--text-dim);
         pointer-events: none;
+      }
+
+      /* ── Random discourse button ───────────────────────── */
+      #random-btn {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border);
+        background: none;
+        color: var(--text-dim);
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          color 0.15s,
+          background 0.15s;
+        padding: 0;
+      }
+      #random-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: var(--accent-dim);
       }
       #search-hint {
         margin-top: 9px;
@@ -270,7 +303,10 @@
         font-family: inherit;
         font-size: 8pt;
         cursor: pointer;
-        transition: border-color 0.15s, color 0.15s, background 0.15s;
+        transition:
+          border-color 0.15s,
+          color 0.15s,
+          background 0.15s;
         white-space: nowrap;
       }
       .filter-chip:hover {
@@ -296,29 +332,55 @@
           <img id="hero-photo" src="Images/Sarkar.jpg" alt="P.R. Sarkar" />
         </div>
         <div id="search-wrap">
-          <input
-            id="search-input"
-            type="search"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            placeholder="Search discourses…"
-            aria-label="Search discourses"
-          />
-          <svg
-            id="search-icon"
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
+          <div id="search-input-wrap">
+            <input
+              id="search-input"
+              type="search"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              placeholder="Search discourses…"
+              aria-label="Search discourses"
+            />
+            <svg
+              id="search-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            >
+              <circle cx="6.5" cy="6.5" r="4.5" />
+              <line x1="10" y1="10" x2="14" y2="14" />
+            </svg>
+          </div>
+          <button
+            id="random-btn"
+            type="button"
+            aria-label="Open a random discourse"
+            title="Random discourse"
           >
-            <circle cx="6.5" cy="6.5" r="4.5" />
-            <line x1="10" y1="10" x2="14" y2="14" />
-          </svg>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="1" y="1" width="14" height="14" rx="3" />
+              <circle cx="5" cy="5" r="1" fill="currentColor" stroke="none" />
+              <circle cx="11" cy="5" r="1" fill="currentColor" stroke="none" />
+              <circle cx="5" cy="11" r="1" fill="currentColor" stroke="none" />
+              <circle cx="11" cy="11" r="1" fill="currentColor" stroke="none" />
+              <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
         </div>
         <p id="search-hint">
           Type at least 3 characters &nbsp;·&nbsp; diacritics ignored:
@@ -382,7 +444,8 @@
           _activeFilter = makeFilterLookup(filterSets[keys[0]]);
           keys.forEach(function (name) {
             var btn = document.createElement("button");
-            btn.className = "filter-chip" + (name === _activeFilterName ? " active" : "");
+            btn.className =
+              "filter-chip" + (name === _activeFilterName ? " active" : "");
             btn.textContent = name;
             btn.onclick = function () {
               _activeFilterName = name;
@@ -395,8 +458,9 @@
               if (normalize(q.trim()).length >= MIN_QUERY) {
                 _allResults = search(q);
                 _shownCount = Math.min(PAGE_SIZE, _allResults.length);
-                document.getElementById("results").innerHTML =
-                  renderGroups(_allResults.slice(0, _shownCount));
+                document.getElementById("results").innerHTML = renderGroups(
+                  _allResults.slice(0, _shownCount),
+                );
                 updateShowMore();
                 updateStatus();
               }
@@ -592,11 +656,52 @@
             renderResults(all);
           }, DEBOUNCE_MS);
         }
+        function pickRandom() {
+          var pool;
+          if (!_activeFilter) {
+            // "All" — collect unique file paths from the search index
+            if (typeof searchIndex === "undefined") return;
+            var seen = Object.create(null);
+            pool = [];
+            for (var i = 0; i < searchIndex.length; i++) {
+              var f = searchIndex[i].f;
+              if (!seen[f]) {
+                seen[f] = true;
+                pool.push(f);
+              }
+            }
+          } else {
+            // Filtered — keys of _activeFilter are basenames like "Foo.html"
+            pool = Object.keys(_activeFilter).map(function (fn) {
+              return "Discourses/" + fn;
+            });
+          }
+          if (!pool.length) return;
+          var pick = pool[Math.floor(Math.random() * pool.length)];
+          if (window.parent !== window) {
+            window.parent.postMessage({ type: "ee7-navigate", href: pick }, "*");
+          } else {
+            window.location.href = pick;
+          }
+        }
+
+        // Intercept result link clicks for animated navigation
+        document.addEventListener("click", function (e) {
+          var link = e.target.closest("#results a[href]");
+          if (!link) return;
+          if (window.parent === window) return;
+          e.preventDefault();
+          window.parent.postMessage({ type: "ee7-navigate", href: link.href }, "*");
+        });
+
         window.addEventListener("load", function () {
           buildFilterBar();
           var inp = document.getElementById("search-input");
           inp.addEventListener("input", onInput);
           inp.focus();
+          document
+            .getElementById("random-btn")
+            .addEventListener("click", pickRandom);
           if (typeof searchIndex === "undefined")
             document.getElementById("status").textContent =
               "Search index not found. Run build_search_index.py first.";

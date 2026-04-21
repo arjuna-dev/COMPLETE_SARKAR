@@ -52,7 +52,7 @@ UL { margin-left:1px; }
 /*
                    IMPORTANT!
 
-In order for the EE7.5 Setup utility to function properly,
+In order for the EE7+ Setup utility to function properly,
 some lines include multiple values stored as comments. E.g:
 
    TEXT.SIZE=[8,9,10,11,12]

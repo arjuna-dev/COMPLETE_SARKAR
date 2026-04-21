@@ -66,7 +66,7 @@ def extract_title(content):
         if t:
             return t
 
-    # 3. <title> tag (strip "EE7.5 - " prefix)
+    # 3. <title> tag (strip "EE7+ - " prefix)
     m = re.search(r"<title[^>]*>(.*?)</title>", content, re.DOTALL | re.IGNORECASE)
     if m:
         t = decode(m.group(1))
