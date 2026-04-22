@@ -720,6 +720,33 @@
 
           <div id="topbar-spacer"></div>
 
+          <!-- Random-continue die (only visible after a random-discourse navigation) -->
+          <button
+            class="bar-btn"
+            id="random-continue-btn"
+            title="Another random discourse"
+            aria-label="Another random discourse"
+            style="display: none"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="1" y="1" width="14" height="14" rx="3" />
+              <circle cx="5" cy="5" r="1" fill="currentColor" stroke="none" />
+              <circle cx="11" cy="5" r="1" fill="currentColor" stroke="none" />
+              <circle cx="5" cy="11" r="1" fill="currentColor" stroke="none" />
+              <circle cx="11" cy="11" r="1" fill="currentColor" stroke="none" />
+              <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+
           <!-- Theme toggle -->
           <button
             class="bar-btn"
@@ -1017,12 +1044,44 @@
             var href = link.getAttribute("href");
             if (!href) return;
             e.preventDefault();
+            hideRandomContinue();
             navigateFrame(href);
           });
+
+        // ── Random-continue mode ──────────────────────────────────
+        var _randomPool = null;
+        var randomContinueBtn = document.getElementById("random-continue-btn");
+
+        function showRandomContinue(pool) {
+          _randomPool = pool;
+          randomContinueBtn.style.display = "";
+        }
+        function hideRandomContinue() {
+          _randomPool = null;
+          randomContinueBtn.style.display = "none";
+          try {
+            sessionStorage.removeItem("ee7-random-pool");
+          } catch (e) {}
+        }
+        function pickRandomContinue() {
+          if (!_randomPool || !_randomPool.length) return;
+          var pick =
+            _randomPool[Math.floor(Math.random() * _randomPool.length)];
+          navigateFrame(pick);
+        }
+        randomContinueBtn.addEventListener("click", pickRandomContinue);
 
         // Handle navigation requests posted from the search iframe
         window.addEventListener("message", function (e) {
           if (e.data && e.data.type === "ee7-navigate" && e.data.href) {
+            if (e.data.isRandom) {
+              try {
+                var pool = JSON.parse(
+                  sessionStorage.getItem("ee7-random-pool") || "[]",
+                );
+                if (pool.length) showRandomContinue(pool);
+              } catch (ex) {}
+            }
             navigateFrame(e.data.href);
           }
         });

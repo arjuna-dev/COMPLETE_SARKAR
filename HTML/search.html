@@ -677,10 +677,14 @@
             });
           }
           if (!pool.length) return;
+          // Persist pool so the parent frame can offer a "next random" button
+          try {
+            sessionStorage.setItem("ee7-random-pool", JSON.stringify(pool));
+          } catch (e) {}
           var pick = pool[Math.floor(Math.random() * pool.length)];
           if (window.parent !== window) {
             window.parent.postMessage(
-              { type: "ee7-navigate", href: pick },
+              { type: "ee7-navigate", href: pick, isRandom: true },
               "*",
             );
           } else {
