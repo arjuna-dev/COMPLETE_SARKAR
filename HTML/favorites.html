@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Favorites — EE 7+</title>
+    <script src="Layout/favorites.js"></script>
+    <style>
+      :root[data-theme="dark"] {
+        --bg: #2e2a24;
+        --text: #ddd5c8;
+        --text-dim: #8c8078;
+        --text-mid: #a09088;
+        --accent: #e07820;
+        --accent-dim: rgba(224, 120, 32, 0.18);
+        --border: #3e3228;
+      }
+      :root[data-theme="light"] {
+        --bg: #f7f4f0;
+        --text: #1a160e;
+        --text-dim: #9a8e80;
+        --text-mid: #6a6050;
+        --accent: #c06010;
+        --accent-dim: rgba(192, 96, 16, 0.1);
+        --border: #d5cfc6;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Tahoma, "Arial Unicode MS", Geneva, sans-serif;
+        font-size: 10pt;
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      #page {
+        min-height: 100%;
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 0 24px 60px;
+      }
+
+      #hero {
+        padding: 54px 0 18px;
+      }
+      #hero-title {
+        font-size: 18pt;
+        font-weight: 700;
+        margin-bottom: 6px;
+        letter-spacing: 0.01em;
+      }
+      #hero-sub {
+        font-size: 8.5pt;
+        color: var(--text-dim);
+      }
+
+      #status {
+        color: var(--text-dim);
+        font-size: 8pt;
+        margin: 8px 0 6px;
+        min-height: 18px;
+      }
+
+      #list {
+        border-top: 1px solid var(--border);
+      }
+
+      .favorite-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .favorite-main {
+        flex: 1;
+        min-width: 0;
+      }
+      .favorite-title {
+        display: inline-block;
+        font-size: 11pt;
+        font-weight: 700;
+        line-height: 1.35;
+        margin-bottom: 4px;
+      }
+      .favorite-href {
+        color: var(--text-dim);
+        font-size: 7.75pt;
+        word-break: break-all;
+      }
+      .favorite-actions {
+        flex-shrink: 0;
+        padding-top: 1px;
+      }
+      .favorites-empty {
+        padding: 28px 0;
+        color: var(--text-dim);
+        font-size: 9pt;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="page">
+      <div id="hero">
+        <div id="hero-title">Favorites</div>
+        <div id="hero-sub">Saved locally in this browser, no login required.</div>
+      </div>
+
+      <div id="status"></div>
+      <div id="list"></div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var THEME_KEY = "ee7-theme";
+
+        function applyTheme(t) {
+          document.documentElement.setAttribute("data-theme", t);
+        }
+
+        (function () {
+          var t = "dark";
+          try {
+            t = localStorage.getItem(THEME_KEY) || "dark";
+          } catch (e) {}
+          applyTheme(t);
+        })();
+
+        window.addEventListener("message", function (e) {
+          if (e.data && e.data.type === "ee7-theme") applyTheme(e.data.theme);
+        });
+
+        function render() {
+          var list = document.getElementById("list");
+          var items = window.EE7Favorites
+            ? window.EE7Favorites.renderFavoritesPage(
+                list,
+                "No favorites yet. Use the star on a discourse page or in search results to save one.",
+              )
+            : [];
+
+          document.getElementById("status").textContent = items.length
+            ? items.length + " favorite" + (items.length !== 1 ? "s" : "")
+            : "";
+        }
+
+        document.addEventListener("click", function (e) {
+          var link = e.target.closest("#list a[href]");
+          if (!link) return;
+          if (window.parent === window) return;
+          e.preventDefault();
+          window.parent.postMessage(
+            { type: "ee7-navigate", href: link.getAttribute("href") },
+            "*",
+          );
+        });
+
+        document.getElementById("list").addEventListener("click", function (e) {
+          var btn = e.target.closest(".ee7-favorite-toggle");
+          if (!btn) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (!window.EE7Favorites) return;
+          window.EE7Favorites.toggleFavorite({
+            href: btn.getAttribute("data-ee7-favorite-href"),
+            title: btn.getAttribute("data-ee7-favorite-title"),
+          });
+          render();
+        });
+
+        window.EE7FavoritesOnChange = render;
+
+        window.addEventListener("load", function () {
+          render();
+        });
+      })();
+    </script>
+  </body>
+</html>
