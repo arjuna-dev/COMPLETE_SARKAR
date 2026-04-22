@@ -363,6 +363,29 @@
             onclick="setActive(this)"
             >Chronological</a
           >
+          <a
+            class="nav-link"
+            href="favorites.html"
+            target="Client"
+            onclick="setActive(this)"
+            style="display: flex; align-items: center; gap: 6px"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+              style="flex-shrink: 0; opacity: 0.75"
+            >
+              <path
+                d="M8 1.6l1.7 3.44 3.8.55-2.75 2.68.65 3.79L8 10.28 4.6 12.06l.65-3.79L2.5 5.59l3.8-.55L8 1.6z"
+              />
+            </svg>
+            Favorites
+          </a>
 
           <!-- Ásanas accordion -->
           <button
@@ -838,6 +861,7 @@
     </div>
     <!-- /shell -->
 
+    <script src="Layout/favorites.js"></script>
     <script>
       (function () {
         "use strict";
@@ -906,6 +930,17 @@
               { type: "ee7-theme", theme: theme },
               "*",
             );
+          } catch (e) {}
+          try {
+            if (
+              window.EE7Favorites &&
+              this.contentWindow &&
+              this.contentWindow.document
+            ) {
+              window.EE7Favorites.decorateDiscoursePage(
+                this.contentWindow.document,
+              );
+            }
           } catch (e) {}
         });
 

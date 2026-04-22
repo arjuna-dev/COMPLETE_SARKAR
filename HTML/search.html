@@ -6,6 +6,7 @@
     <title>Search — EE 7+</title>
     <script src="search_index.js"></script>
     <script src="filter_sets.js"></script>
+    <script src="Layout/favorites.js"></script>
     <style>
       :root[data-theme="dark"] {
         --bg: #2e2a24;
@@ -213,10 +214,17 @@
         border-bottom: none;
       }
       .result-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         font-size: 10.5pt;
         font-weight: 700;
         margin-bottom: 5px;
         line-height: 1.3;
+      }
+      .result-title-link {
+        min-width: 0;
+        flex: 1;
       }
       .result-title a {
         color: var(--accent);
@@ -229,7 +237,8 @@
         font-size: 8pt;
         color: var(--text-dim);
         font-weight: 400;
-        margin-left: 4px;
+        margin-left: 2px;
+        flex-shrink: 0;
       }
       .result-snippet {
         font-size: 8.5pt;
@@ -552,11 +561,17 @@
             var grp = groups[g];
             html += '<div class="result-group">';
             html +=
-              '<div class="result-title"><a href="' +
+              '<div class="result-title"><a class="result-title-link" href="' +
               escHtml(grp.f) +
               '" target="Client">' +
               escHtml(grp.t) +
-              "</a>";
+              "</a>" +
+              (window.EE7Favorites
+                ? window.EE7Favorites.favoriteButtonHtml(
+                    { href: grp.f, title: grp.t },
+                    { compact: true },
+                  )
+                : "");
             html +=
               '<span class="result-count">(' +
               grp.count +
@@ -697,6 +712,21 @@
           window.parent.postMessage(
             { type: "ee7-navigate", href: link.href },
             "*",
+          );
+        });
+
+        document.getElementById("results").addEventListener("click", function (e) {
+          var btn = e.target.closest(".ee7-favorite-toggle");
+          if (!btn) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (!window.EE7Favorites) return;
+          window.EE7Favorites.toggleFavorite({
+            href: btn.getAttribute("data-ee7-favorite-href"),
+            title: btn.getAttribute("data-ee7-favorite-title"),
+          });
+          window.EE7Favorites.syncFavoriteButtons(
+            document.getElementById("results"),
           );
         });
 
