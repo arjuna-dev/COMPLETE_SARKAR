@@ -440,6 +440,7 @@
         // by the basename of allowed files for O(1) lookup.
         var _activeFilter = null;
         var _activeFilterName = null;
+        var FILTER_KEY = "ee7-active-filter";
 
         function buildFilterBar() {
           var bar = document.getElementById("filter-bar");
@@ -448,9 +449,19 @@
           // Only show the bar if there's more than just "All"
           if (keys.length <= 1) return;
           bar.classList.remove("hidden");
-          // Default: first key active
-          _activeFilterName = keys[0];
-          _activeFilter = makeFilterLookup(filterSets[keys[0]]);
+          // Restore saved filter from localStorage, fall back to first key
+          var savedName = null;
+          try {
+            savedName = localStorage.getItem(FILTER_KEY);
+          } catch (e) {}
+          if (
+            !savedName ||
+            !Object.prototype.hasOwnProperty.call(filterSets, savedName)
+          ) {
+            savedName = keys[0];
+          }
+          _activeFilterName = savedName;
+          _activeFilter = makeFilterLookup(filterSets[savedName]);
           keys.forEach(function (name) {
             var btn = document.createElement("button");
             btn.className =
@@ -459,6 +470,9 @@
             btn.onclick = function () {
               _activeFilterName = name;
               _activeFilter = makeFilterLookup(filterSets[name]);
+              try {
+                localStorage.setItem(FILTER_KEY, name);
+              } catch (e) {}
               bar.querySelectorAll(".filter-chip").forEach(function (c) {
                 c.classList.toggle("active", c.textContent === name);
               });
@@ -719,20 +733,22 @@
           );
         });
 
-        document.getElementById("results").addEventListener("click", function (e) {
-          var btn = e.target.closest(".ee7-favorite-toggle");
-          if (!btn) return;
-          e.preventDefault();
-          e.stopPropagation();
-          if (!window.EE7Favorites) return;
-          window.EE7Favorites.toggleFavorite({
-            href: btn.getAttribute("data-ee7-favorite-href"),
-            title: btn.getAttribute("data-ee7-favorite-title"),
+        document
+          .getElementById("results")
+          .addEventListener("click", function (e) {
+            var btn = e.target.closest(".ee7-favorite-toggle");
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (!window.EE7Favorites) return;
+            window.EE7Favorites.toggleFavorite({
+              href: btn.getAttribute("data-ee7-favorite-href"),
+              title: btn.getAttribute("data-ee7-favorite-title"),
+            });
+            window.EE7Favorites.syncFavoriteButtons(
+              document.getElementById("results"),
+            );
           });
-          window.EE7Favorites.syncFavoriteButtons(
-            document.getElementById("results"),
-          );
-        });
 
         window.addEventListener("load", function () {
           buildFilterBar();
