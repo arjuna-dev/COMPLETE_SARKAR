@@ -743,13 +743,12 @@
 
           <div id="topbar-spacer"></div>
 
-          <!-- Random-continue die (only visible after a random-discourse navigation) -->
+          <!-- Random discourse die -->
           <button
             class="bar-btn"
             id="random-continue-btn"
             title="Another random discourse"
             aria-label="Another random discourse"
-            style="display: none"
           >
             <svg
               width="15"
@@ -888,6 +887,7 @@
     </div>
     <!-- /shell -->
 
+    <script src="search_index.js"></script>
     <script src="Layout/favorites.js"></script>
     <script>
       (function () {
@@ -1079,32 +1079,64 @@
             var href = link.getAttribute("href");
             if (!href) return;
             e.preventDefault();
-            hideRandomContinue();
             navigateFrame(href);
           });
 
-        // ── Random-continue mode ──────────────────────────────────
+        // ── Random discourse shortcut ──────────────────────────────
         var _randomPool = null;
         var randomContinueBtn = document.getElementById("random-continue-btn");
 
-        function showRandomContinue(pool) {
-          _randomPool = pool;
-          randomContinueBtn.style.display = "";
+        function normalizePool(pool) {
+          if (!pool || !pool.length) return [];
+          var seen = Object.create(null);
+          var normalized = [];
+          for (var i = 0; i < pool.length; i++) {
+            var href = pool[i];
+            if (!href || seen[href]) continue;
+            seen[href] = true;
+            normalized.push(href);
+          }
+          return normalized;
         }
-        function hideRandomContinue() {
-          _randomPool = null;
-          randomContinueBtn.style.display = "none";
+
+        function buildGlobalRandomPool() {
+          if (typeof searchIndex === "undefined" || !searchIndex.length) return [];
+          var all = [];
+          for (var i = 0; i < searchIndex.length; i++) {
+            all.push(searchIndex[i].f);
+          }
+          return normalizePool(all);
+        }
+
+        function setRandomPool(pool) {
+          _randomPool = normalizePool(pool);
           try {
-            sessionStorage.removeItem("ee7-random-pool");
+            sessionStorage.setItem("ee7-random-pool", JSON.stringify(_randomPool));
           } catch (e) {}
         }
+
+        function ensureRandomPool() {
+          if (_randomPool && _randomPool.length) return _randomPool;
+          try {
+            var stored = JSON.parse(sessionStorage.getItem("ee7-random-pool") || "[]");
+            _randomPool = normalizePool(stored);
+          } catch (e) {
+            _randomPool = [];
+          }
+          if (!_randomPool.length) {
+            _randomPool = buildGlobalRandomPool();
+          }
+          return _randomPool;
+        }
+
         function pickRandomContinue() {
-          if (!_randomPool || !_randomPool.length) return;
-          var pick =
-            _randomPool[Math.floor(Math.random() * _randomPool.length)];
+          var pool = ensureRandomPool();
+          if (!pool.length) return;
+          var pick = pool[Math.floor(Math.random() * pool.length)];
           navigateFrame(pick);
         }
         randomContinueBtn.addEventListener("click", pickRandomContinue);
+        ensureRandomPool();
 
         // Handle navigation requests posted from the search iframe
         window.addEventListener("message", function (e) {
@@ -1114,7 +1146,7 @@
                 var pool = JSON.parse(
                   sessionStorage.getItem("ee7-random-pool") || "[]",
                 );
-                if (pool.length) showRandomContinue(pool);
+                if (pool.length) setRandomPool(pool);
               } catch (ex) {}
             }
             navigateFrame(e.data.href);
