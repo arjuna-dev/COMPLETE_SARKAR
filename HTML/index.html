@@ -933,18 +933,164 @@
         } catch (e) {}
         applyTheme(saved);
 
-        // ── Frame persistence (survives hot-reload / page refresh) ─────
         var frame = document.getElementById("client-frame");
+
+        // ── Shareable iframe routes ───────────────────────────────────
+        // The shell remains index.html while the active iframe document is
+        // represented by ?view=... in the address bar. A fragment is kept
+        // on the shell URL so paragraph anchors remain shareable too.
+        var VIEW_PARAM = "view";
+        var DEFAULT_VIEW = "search.html";
+
+        function frameRootUrl() {
+          return new URL(".", document.baseURI);
+        }
+
+        function resolveFrameUrl(href) {
+          try {
+            var url = new URL(href, document.baseURI);
+            var root = frameRootUrl();
+            if (
+              url.origin !== root.origin ||
+              url.pathname.indexOf(root.pathname) !== 0
+            ) {
+              return null;
+            }
+            return url;
+          } catch (e) {
+            return null;
+          }
+        }
+
+        function relativeFrameUrl(url) {
+          var root = frameRootUrl();
+          if (
+            url.origin !== root.origin ||
+            url.pathname.indexOf(root.pathname) !== 0
+          ) {
+            return null;
+          }
+          return url.pathname.slice(root.pathname.length) + url.search + url.hash;
+        }
+
+        function frameUrlFromAddress() {
+          var view = new URLSearchParams(window.location.search).get(
+            VIEW_PARAM,
+          );
+          if (!view) return null;
+          var url = resolveFrameUrl(view);
+          if (!url) return null;
+          // The shell fragment is the iframe fragment. This keeps URLs easy
+          // to copy while still supporting anchors such as #9..64.
+          if (window.location.hash) url.hash = window.location.hash;
+          return relativeFrameUrl(url);
+        }
+
+        function shellUrlForFrame(href) {
+          var url = resolveFrameUrl(href);
+          if (!url) return null;
+          var relative = relativeFrameUrl(url);
+          if (!relative) return null;
+
+          var shellUrl = new URL(window.location.href);
+          var viewValue = relative;
+          var hash = url.hash;
+          if (hash) viewValue = relative.slice(0, relative.indexOf(hash));
+
+          if (
+            viewValue === DEFAULT_VIEW &&
+            !url.search &&
+            !hash
+          ) {
+            shellUrl.searchParams.delete(VIEW_PARAM);
+          } else {
+            shellUrl.searchParams.set(VIEW_PARAM, viewValue);
+          }
+          shellUrl.hash = hash;
+          return shellUrl;
+        }
+
+        function syncAddressBar(href, replace) {
+          var shellUrl = shellUrlForFrame(href);
+          if (!shellUrl) return;
+          var next = shellUrl.pathname + shellUrl.search + shellUrl.hash;
+          var current =
+            window.location.pathname +
+            window.location.search +
+            window.location.hash;
+          if (next === current) return;
+          var method = replace ? "replaceState" : "pushState";
+          var stateView =
+            shellUrl.searchParams.get(VIEW_PARAM) || DEFAULT_VIEW;
+          window.history[method]({ view: stateView }, "", next);
+        }
+
+        function loadFrameFromAddress() {
+          var href = frameUrlFromAddress() || DEFAULT_VIEW;
+          navigateFrame(href, { fromHistory: true });
+        }
+
+        // ── Frame persistence (survives hot-reload / page refresh) ─────
         (function () {
+          var fromAddress = frameUrlFromAddress();
+          if (fromAddress) {
+            frame.src = fromAddress;
+            return;
+          }
+
           var last = null;
           try {
             last = sessionStorage.getItem("ee7-last-frame");
           } catch (e) {}
-          if (last && last !== "about:blank") frame.src = last;
+          if (last && last !== "about:blank") {
+            var lastUrl = resolveFrameUrl(last);
+            if (lastUrl) {
+              frame.src = lastUrl.href;
+              syncAddressBar(lastUrl.href, true);
+            }
+          }
         })();
 
-        // propagate theme on every iframe navigation + persist URL
+        // Intercept same-origin links inside the iframe so every view uses
+        // the shell route, including links and anchors inside discourses.
+        function bindFrameNavigation() {
+          try {
+            var doc = frame.contentWindow.document;
+            if (!doc || !doc.addEventListener) return;
+            doc.addEventListener("click", function (e) {
+              if (
+                e.defaultPrevented ||
+                e.button !== 0 ||
+                e.metaKey ||
+                e.ctrlKey ||
+                e.shiftKey ||
+                e.altKey
+              ) {
+                return;
+              }
+              var target = e.target;
+              var link = target && target.closest ? target.closest("a[href]") : null;
+              if (!link) return;
+              var linkTarget = (link.getAttribute("target") || "").toLowerCase();
+              if (
+                linkTarget &&
+                linkTarget !== "_self" &&
+                linkTarget !== "client"
+              ) {
+                return;
+              }
+              if (link.hasAttribute("download")) return;
+              var url = resolveFrameUrl(link.href);
+              if (!url) return;
+              e.preventDefault();
+              navigateFrame(url.href);
+            });
+          } catch (e) {}
+        }
+
+        // propagate theme on every iframe navigation + persist iframe URL
         frame.addEventListener("load", function () {
+          bindFrameNavigation();
           try {
             var href = this.contentWindow.location.href;
             if (href && href !== "about:blank") {
@@ -1035,20 +1181,34 @@
         }
         window.setActive = setActive;
         // ── GSAP page transitions ─────────────────────────────────
-        function navigateFrame(href) {
+        function replaceFrameDocument(href) {
+          try {
+            frame.contentWindow.location.replace(href);
+          } catch (e) {
+            frame.src = href;
+          }
+        }
+
+        function navigateFrame(href, options) {
+          var targetUrl = resolveFrameUrl(href);
+          if (!targetUrl) return;
+          var targetHref = targetUrl.href;
+          var fromHistory = options && options.fromHistory;
+          if (!fromHistory) syncAddressBar(targetHref, false);
+
           // Detect same-document navigation (hash-only change).
           // The iframe load event won't fire reliably for these, so skip
           // the fade-out to avoid leaving the iframe permanently invisible.
           var sameDoc = false;
           try {
-            var newUrl = new URL(href, document.location.href);
+            var newUrl = targetUrl;
             var curUrl = new URL(frame.src);
             sameDoc =
               newUrl.origin === curUrl.origin &&
               newUrl.pathname === curUrl.pathname;
           } catch (e) {}
           if (sameDoc) {
-            frame.src = href;
+            replaceFrameDocument(targetHref);
             return;
           }
           gsap.to(frame, {
@@ -1056,10 +1216,12 @@
             duration: 0.18,
             ease: "power2.in",
             onComplete: function () {
-              frame.src = href;
+              replaceFrameDocument(targetHref);
             },
           });
         }
+
+        window.addEventListener("popstate", loadFrameFromAddress);
 
         // Fade in every time the iframe loads new content
         frame.addEventListener("load", function () {
