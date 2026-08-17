@@ -263,6 +263,7 @@
         background: var(--accent);
         color: #fff;
       }
+      .result-title mark,
       .result-snippet mark {
         background: var(--mark-bg);
         color: var(--text);
@@ -542,6 +543,21 @@
             (e < orig.length ? " […]" : "")
           );
         }
+        function highlightMatches(orig, positions, qlen) {
+          var html = "",
+            last = 0;
+          for (var i = 0; i < positions.length; i++) {
+            var pos = positions[i];
+            if (pos < last) continue;
+            html += escHtml(orig.slice(last, pos));
+            html +=
+              "<mark>" +
+              escHtml(orig.slice(pos, pos + qlen)) +
+              "</mark>";
+            last = pos + qlen;
+          }
+          return html + escHtml(orig.slice(last));
+        }
         function search(rawQuery) {
           var normQ = normalize(rawQuery.trim());
           if (normQ.length < MIN_QUERY) return [];
@@ -550,20 +566,37 @@
           for (var i = 0; i < searchIndex.length; i++) {
             var entry = searchIndex[i];
             if (!inFilter(entry.f)) continue;
-            var normX = normalize(entry.x),
+            var normTitle = normalize(entry.t),
+              titlePos = findAll(normTitle, normQ),
+              normX = normalize(entry.x),
               pos = findAll(normX, normQ);
-            if (!pos.length) continue;
+            if (!titlePos.length && !pos.length) continue;
             if (!map[entry.f]) {
-              map[entry.f] = { t: entry.t, f: entry.f, count: 0, snippets: [] };
+              map[entry.f] = {
+                t: entry.t,
+                titleHtml: escHtml(entry.t),
+                f: entry.f,
+                count: 0,
+                titleMatched: false,
+                snippets: [],
+              };
               order.push(entry.f);
             }
             var g = map[entry.f];
+            // The title is repeated on every paragraph entry, so count a
+            // title match once per discourse rather than once per paragraph.
+            if (titlePos.length && !g.titleMatched) {
+              g.titleMatched = true;
+              g.count += titlePos.length;
+              g.titleHtml = highlightMatches(entry.t, titlePos, normQ.length);
+            }
             g.count += pos.length;
-            if (g.snippets.length < MAX_SNIPPETS)
+            if (g.snippets.length < MAX_SNIPPETS && pos.length) {
               g.snippets.push({
                 a: entry.a,
                 html: makeSnippet(entry.x, normX, pos[0], normQ.length),
               });
+            }
           }
           return order.map(function (k) {
             return map[k];
@@ -578,7 +611,7 @@
               '<div class="result-title"><a class="result-title-link" href="' +
               escHtml(grp.f) +
               '" target="Client">' +
-              escHtml(grp.t) +
+              grp.titleHtml +
               "</a>" +
               (window.EE7Favorites
                 ? window.EE7Favorites.favoriteButtonHtml(
