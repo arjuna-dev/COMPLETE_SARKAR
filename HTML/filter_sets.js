@@ -3,10 +3,12 @@
  *
  * Each key is a filter label shown as a button in the search UI.
  * Each value is an array of discourse filenames (basename only, no path).
+ * Baba stories are controlled separately by the "Include Baba stories"
+ * checkbox in search.html. Custom sets continue to apply to discourses only.
  *
  * Rules:
  *   - The first entry is always shown selected by default (usually "All").
- *   - A null value means "no filter — search all discourses".
+ *   - A null value means "no filter - search all discourses".
  *   - Filenames are matched against the `f` field in the search index,
  *     which looks like "Discourses/Some_Discourse.html".
  *     You only need to supply the filename part: "Some_Discourse.html".

@@ -133,13 +133,13 @@
   function starSvg(active) {
     if (active) {
       return (
-        '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
+        '<svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
         '<path d="M8 1.6l1.7 3.44 3.8.55-2.75 2.68.65 3.79L8 10.28 4.6 12.06l.65-3.79L2.5 5.59l3.8-.55L8 1.6z"/>' +
         "</svg>"
       );
     }
     return (
-      '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">' +
+      '<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">' +
       '<path d="M8 1.6l1.7 3.44 3.8.55-2.75 2.68.65 3.79L8 10.28 4.6 12.06l.65-3.79L2.5 5.59l3.8-.55L8 1.6z"/>' +
       "</svg>"
     );
@@ -160,10 +160,12 @@
     if (options.floater) button.className += " ee7-favorite-toggle--floater";
     button.setAttribute("data-ee7-favorite-href", entry.href);
     button.setAttribute("data-ee7-favorite-title", entry.title || entry.href);
-    button.setAttribute("aria-label", buttonLabel(isFavorite(entry.href)));
-    button.setAttribute("aria-pressed", isFavorite(entry.href) ? "true" : "false");
-    button.title = buttonLabel(isFavorite(entry.href));
-    button.innerHTML = starSvg(isFavorite(entry.href));
+    var active = isFavorite(entry.href);
+    button.classList.toggle("is-favorite", active);
+    button.setAttribute("aria-label", buttonLabel(active));
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+    button.title = buttonLabel(active);
+    button.innerHTML = starSvg(active);
     return button;
   }
 
@@ -213,14 +215,14 @@
     var style = doc.createElement("style");
     style.id = STYLE_ID;
     style.textContent =
-      ".ee7-favorite-toggle{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--border);background:var(--bg);color:var(--text-dim);cursor:pointer;transition:border-color .15s,color .15s,background .15s,transform .15s;padding:0;line-height:1}" +
-      ".ee7-favorite-toggle:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}" +
-      ".ee7-favorite-toggle.is-favorite{border-color:var(--accent);background:var(--accent-dim);color:var(--accent)}" +
-      ".ee7-favorite-toggle svg{display:block}" +
-      ".ee7-favorite-toggle--compact{width:22px;height:22px;border-radius:999px}" +
-      ".ee7-favorite-toggle--compact svg{width:11px;height:11px}" +
-      ".ee7-favorite-toggle--floater{width:34px;height:34px;border-radius:999px;box-shadow:0 3px 12px rgba(0,0,0,.18)}" +
-      ".ee7-favorite-toggle--floater svg{width:15px;height:15px}" +
+      ".ee7-favorite-toggle{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:0;background:transparent;color:var(--text-dim);cursor:pointer;transition:color .15s,transform .15s;padding:2px;line-height:1;width:24px;height:24px;outline-offset:3px}" +
+      ".ee7-favorite-toggle:hover{color:var(--accent);background:transparent;transform:scale(1.08)}" +
+      ".ee7-favorite-toggle.is-favorite{color:var(--accent);background:transparent}" +
+      ".ee7-favorite-toggle svg{display:block;width:17px;height:17px}" +
+      ".ee7-favorite-toggle--compact{width:24px;height:24px;border-radius:0;margin-left:4px}" +
+      ".ee7-favorite-toggle--compact svg{width:17px;height:17px}" +
+      ".ee7-favorite-toggle--floater{width:36px;height:36px;border-radius:0;box-shadow:none}" +
+      ".ee7-favorite-toggle--floater svg{width:20px;height:20px}" +
       ".ee7-favorites-floater{position:fixed;top:14px;right:14px;z-index:9999}";
     doc.head.appendChild(style);
   }
@@ -304,6 +306,8 @@
     syncFavoriteButtons(container);
     return items;
   }
+
+  injectStyle(document);
 
   window.EE7Favorites = {
     key: KEY,

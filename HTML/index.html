@@ -235,6 +235,42 @@
         color: var(--accent);
         background: var(--accent-dim);
       }
+      .bar-btn--labeled {
+        gap: 6px;
+        padding: 5px 8px;
+        font-size: 8pt;
+        white-space: nowrap;
+      }
+      .bar-btn--labeled svg {
+        flex-shrink: 0;
+      }
+      .bar-btn-label {
+        line-height: 1;
+      }
+      #favorite-current-btn {
+        width: 30px;
+        height: 30px;
+        padding: 4px;
+      }
+      #favorite-current-btn[hidden] {
+        display: none;
+      }
+      #favorite-current-btn svg {
+        width: 19px;
+        height: 19px;
+      }
+      #favorite-current-btn.is-favorite {
+        color: var(--accent);
+      }
+
+      @media (max-width: 700px) {
+        .bar-btn-label {
+          display: none;
+        }
+        .bar-btn--labeled {
+          padding: 6px;
+        }
+      }
 
       /* iframe */
       #client-frame {
@@ -743,12 +779,12 @@
 
           <div id="topbar-spacer"></div>
 
-          <!-- Random discourse die -->
+          <!-- Random discourse shortcut -->
           <button
-            class="bar-btn"
+            class="bar-btn bar-btn--labeled"
             id="random-continue-btn"
-            title="Another random discourse"
-            aria-label="Another random discourse"
+            title="Go to a random discourse"
+            aria-label="Go to a random discourse"
           >
             <svg
               width="15"
@@ -766,6 +802,30 @@
               <circle cx="5" cy="11" r="1" fill="currentColor" stroke="none" />
               <circle cx="11" cy="11" r="1" fill="currentColor" stroke="none" />
               <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
+            </svg>
+            <span class="bar-btn-label">Random discourse</span>
+          </button>
+
+          <!-- Favorite the current discourse or Baba story -->
+          <button
+            class="bar-btn ee7-favorite-toggle ee7-favorite-toggle--topbar"
+            id="favorite-current-btn"
+            title="Add to favorites"
+            aria-label="Add current item to favorites"
+            aria-pressed="false"
+            hidden
+          >
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M8 1.6l1.7 3.44 3.8.55-2.75 2.68.65 3.79L8 10.28 4.6 12.06l.65-3.79L2.5 5.59l3.8-.55L8 1.6z" />
             </svg>
           </button>
 
@@ -934,6 +994,89 @@
         applyTheme(saved);
 
         var frame = document.getElementById("client-frame");
+        var currentFavoriteBtn = document.getElementById(
+          "favorite-current-btn",
+        );
+
+        function clearCurrentFavoriteButton() {
+          if (!currentFavoriteBtn) return;
+          currentFavoriteBtn.hidden = true;
+          currentFavoriteBtn.removeAttribute("data-ee7-favorite-href");
+          currentFavoriteBtn.removeAttribute("data-ee7-favorite-title");
+          currentFavoriteBtn.classList.remove("is-favorite");
+          currentFavoriteBtn.setAttribute(
+            "aria-label",
+            "Add current item to favorites",
+          );
+          currentFavoriteBtn.setAttribute("aria-pressed", "false");
+        }
+
+        function readerTitle(doc, path) {
+          if (path.indexOf("/Discourses/") !== -1) {
+            return window.EE7Favorites.getDiscourseTitle(doc);
+          }
+          var heading = doc.querySelector("body > h1");
+          if (heading && heading.textContent) {
+            return heading.textContent.replace(/\s+/g, " ").trim();
+          }
+          return (
+            doc.title.replace(/\s+-\s+Baba stories\s*$/i, "").trim() ||
+            "Baba story"
+          );
+        }
+
+        function syncCurrentFavoriteButton() {
+          if (!currentFavoriteBtn || !window.EE7Favorites) return;
+
+          var doc;
+          try {
+            doc = frame.contentWindow && frame.contentWindow.document;
+          } catch (e) {
+            clearCurrentFavoriteButton();
+            return;
+          }
+
+          if (!doc || !doc.body || !doc.location) {
+            clearCurrentFavoriteButton();
+            return;
+          }
+
+          var path = doc.location.pathname || "";
+          var isReader =
+            path.indexOf("/Discourses/") !== -1 ||
+            path.indexOf("/Stories/") !== -1;
+          if (!isReader) {
+            clearCurrentFavoriteButton();
+            return;
+          }
+
+          var href = window.EE7Favorites.normalizeHref(doc.location.href);
+          if (!href) {
+            clearCurrentFavoriteButton();
+            return;
+          }
+
+          currentFavoriteBtn.hidden = false;
+          currentFavoriteBtn.setAttribute("data-ee7-favorite-href", href);
+          currentFavoriteBtn.setAttribute(
+            "data-ee7-favorite-title",
+            readerTitle(doc, path),
+          );
+          window.EE7Favorites.updateButton(currentFavoriteBtn);
+        }
+
+        currentFavoriteBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!window.EE7Favorites) return;
+          var href = this.getAttribute("data-ee7-favorite-href");
+          if (!href) return;
+          window.EE7Favorites.toggleFavorite({
+            href: href,
+            title: this.getAttribute("data-ee7-favorite-title"),
+          });
+          window.EE7Favorites.updateButton(this);
+        });
 
         // ── Shareable iframe routes ───────────────────────────────────
         // The shell remains index.html while the active iframe document is
@@ -1104,18 +1247,9 @@
               "*",
             );
           } catch (e) {}
-          try {
-            if (
-              window.EE7Favorites &&
-              this.contentWindow &&
-              this.contentWindow.document
-            ) {
-              window.EE7Favorites.decorateDiscoursePage(
-                this.contentWindow.document,
-              );
-            }
-          } catch (e) {}
+          syncCurrentFavoriteButton();
         });
+        syncCurrentFavoriteButton();
 
         // ── Sidebar ─────────────────────────────────────────────────
         var MOBILE_BP = 700;
@@ -1265,6 +1399,7 @@
           if (typeof searchIndex === "undefined" || !searchIndex.length) return [];
           var all = [];
           for (var i = 0; i < searchIndex.length; i++) {
+            if (searchIndex[i].s === "stories") continue;
             all.push(searchIndex[i].f);
           }
           return normalizePool(all);

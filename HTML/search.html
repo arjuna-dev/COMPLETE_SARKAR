@@ -205,6 +205,37 @@
       }
 
       /* Results */
+      #results.two-column {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 28px;
+        align-items: start;
+      }
+      .result-column {
+        min-width: 0;
+      }
+      .result-column-title {
+        margin: 20px 0 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 10pt;
+        line-height: 1.3;
+      }
+      .result-column-count {
+        color: var(--text-dim);
+        font-size: 8pt;
+        font-weight: 400;
+      }
+      .result-column-empty {
+        margin: 22px 0 0;
+        color: var(--text-dim);
+        font-size: 8.5pt;
+        font-style: italic;
+      }
+      #results.two-column #show-more-btn {
+        grid-column: 1 / -1;
+      }
       .result-group {
         margin-top: 22px;
         padding-bottom: 18px;
@@ -238,6 +269,16 @@
         color: var(--text-dim);
         font-weight: 400;
         margin-left: 2px;
+        flex-shrink: 0;
+      }
+      .result-source {
+        font-size: 7.5pt;
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 2px 7px;
+        font-weight: 400;
+        white-space: nowrap;
         flex-shrink: 0;
       }
       .result-snippet {
@@ -293,6 +334,28 @@
         background: var(--accent-dim);
       }
 
+      /* Corpus scope toggle */
+      #corpus-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 12px;
+        color: var(--text-mid);
+        font-size: 8.5pt;
+        cursor: pointer;
+        user-select: none;
+      }
+      #corpus-toggle input {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        accent-color: var(--accent);
+      }
+      #corpus-toggle.disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+
       /* ── Filter chips ──────────────────────────────────────── */
       #filter-bar {
         display: flex;
@@ -329,6 +392,14 @@
         color: var(--accent);
         font-weight: 600;
       }
+      @media (max-width: 680px) {
+        #results.two-column {
+          display: block;
+        }
+        .result-column + .result-column {
+          margin-top: 34px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -337,7 +408,9 @@
         <div id="hero-header">
           <div>
             <p id="hero-title">Works of P.R. Sarkar</p>
-            <p id="hero-sub">Full-text search across 1,600+ discourses</p>
+            <p id="hero-sub">
+              Full-text search across 1,600+ discourses, with optional Baba stories
+            </p>
           </div>
           <img id="hero-photo" src="Images/Sarkar.jpg" alt="P.R. Sarkar" />
         </div>
@@ -370,8 +443,8 @@
           <button
             id="random-btn"
             type="button"
-            aria-label="Open a random discourse"
-            title="Random discourse"
+            aria-label="Open a random discourse or Baba story"
+            title="Random discourse or Baba story"
           >
             <svg
               width="15"
@@ -396,6 +469,10 @@
           Type at least 3 characters &nbsp;·&nbsp; diacritics ignored:
           <em>siva</em> finds <em>Śiva</em>
         </p>
+        <label id="corpus-toggle">
+          <input id="include-stories" type="checkbox" />
+          <span>Include Baba stories</span>
+        </label>
         <div id="filter-bar" class="hidden" aria-label="Filter by set"></div>
       </div>
 
@@ -436,12 +513,13 @@
         var _allResults = [],
           _shownCount = 0;
 
-        // ── Filter state ────────────────────────────────────────────
-        // null = no filter (all discourses). Otherwise an Object keyed
-        // by the basename of allowed files for O(1) lookup.
+        // Filter state. A custom filter set applies to discourse files;
+        // the corpus toggle controls whether story entries are included.
         var _activeFilter = null;
         var _activeFilterName = null;
         var FILTER_KEY = "ee7-active-filter";
+        var _includeStories = false;
+        var STORIES_KEY = "ee7-include-stories";
 
         function buildFilterBar() {
           var bar = document.getElementById("filter-bar");
@@ -477,17 +555,7 @@
               bar.querySelectorAll(".filter-chip").forEach(function (c) {
                 c.classList.toggle("active", c.textContent === name);
               });
-              // Re-run current query with new filter
-              var q = document.getElementById("search-input").value;
-              if (normalize(q.trim()).length >= MIN_QUERY) {
-                _allResults = search(q);
-                _shownCount = Math.min(PAGE_SIZE, _allResults.length);
-                document.getElementById("results").innerHTML = renderGroups(
-                  _allResults.slice(0, _shownCount),
-                );
-                updateShowMore();
-                updateStatus();
-              }
+              rerunCurrentSearch();
             };
             bar.appendChild(btn);
           });
@@ -500,11 +568,77 @@
           return obj;
         }
 
-        function inFilter(filePath) {
+        function sourceOf(entry) {
+          return entry.s === "stories" ? "stories" : "discourses";
+        }
+
+        function inFilter(filePath, entry) {
           if (!_activeFilter) return true;
-          // entry.f is like "Discourses/Some_Discourse.html" — match on basename
+          if (sourceOf(entry) !== "discourses") return false;
+          // entry.f is like "Discourses/Some_Discourse.html" - match on basename
           var base = filePath.split("/").pop();
           return !!_activeFilter[base];
+        }
+
+        function inScope(entry) {
+          if (sourceOf(entry) === "stories" && !_includeStories) return false;
+          return inFilter(entry.f, entry);
+        }
+
+        function storiesInScope() {
+          return _includeStories && !_activeFilter;
+        }
+
+        function updateCorpusToggle() {
+          var input = document.getElementById("include-stories");
+          var searchInput = document.getElementById("search-input");
+          input.checked = _includeStories;
+          input.setAttribute("aria-label", "Include Baba stories in search");
+          searchInput.placeholder = _includeStories
+            ? "Search discourses and Baba stories…"
+            : "Search discourses…";
+          searchInput.setAttribute(
+            "aria-label",
+            _includeStories
+              ? "Search discourses and Baba stories"
+              : "Search discourses",
+          );
+        }
+
+        function initCorpusToggle() {
+          var input = document.getElementById("include-stories");
+          var hasStories = false;
+          if (typeof searchIndex !== "undefined") {
+            for (var i = 0; i < searchIndex.length; i++) {
+              if (sourceOf(searchIndex[i]) === "stories") {
+                hasStories = true;
+                break;
+              }
+            }
+          }
+          try {
+            _includeStories = localStorage.getItem(STORIES_KEY) === "true";
+          } catch (e) {}
+          if (!hasStories) _includeStories = false;
+          input.disabled = !hasStories;
+          document
+            .getElementById("corpus-toggle")
+            .classList.toggle("disabled", !hasStories);
+          updateCorpusToggle();
+          input.addEventListener("change", function () {
+            _includeStories = input.checked;
+            try {
+              localStorage.setItem(STORIES_KEY, String(_includeStories));
+            } catch (e) {}
+            updateCorpusToggle();
+            rerunCurrentSearch();
+          });
+        }
+
+        function rerunCurrentSearch() {
+          var q = document.getElementById("search-input").value;
+          if (normalize(q.trim()).length < MIN_QUERY) return;
+          renderResults(search(q));
         }
 
         function normalize(s) {
@@ -561,11 +695,12 @@
         function search(rawQuery) {
           var normQ = normalize(rawQuery.trim());
           if (normQ.length < MIN_QUERY) return [];
+          if (typeof searchIndex === "undefined") return [];
           var map = Object.create(null),
             order = [];
           for (var i = 0; i < searchIndex.length; i++) {
             var entry = searchIndex[i];
-            if (!inFilter(entry.f)) continue;
+            if (!inScope(entry)) continue;
             var normTitle = normalize(entry.t),
               titlePos = findAll(normTitle, normQ),
               normX = normalize(entry.x),
@@ -576,6 +711,7 @@
                 t: entry.t,
                 titleHtml: escHtml(entry.t),
                 f: entry.f,
+                source: sourceOf(entry),
                 count: 0,
                 titleMatched: false,
                 snippets: [],
@@ -598,49 +734,94 @@
               });
             }
           }
-          return order.map(function (k) {
-            return map[k];
-          });
+          return order
+            .map(function (k, index) {
+              var group = map[k];
+              group.order = index;
+              return group;
+            })
+            .sort(function (a, b) {
+              return b.count - a.count || a.order - b.order;
+            });
         }
-        function renderGroups(groups) {
-          var html = "";
-          for (var g = 0; g < groups.length; g++) {
-            var grp = groups[g];
-            html += '<div class="result-group">';
+
+        function renderGroup(group) {
+          var html = '<div class="result-group">';
+          html +=
+            '<div class="result-title"><a class="result-title-link" href="' +
+            escHtml(group.f) +
+            '" target="Client">' +
+            group.titleHtml +
+            "</a>" +
+            (window.EE7Favorites
+              ? window.EE7Favorites.favoriteButtonHtml(
+                  { href: group.f, title: group.t },
+                  { compact: true },
+                )
+              : "");
+          html +=
+            '<span class="result-source">' +
+            (group.source === "stories" ? "Baba story" : "Discourse") +
+            "</span>";
+          html +=
+            '<span class="result-count">(' +
+            group.count +
+            " occurrence" +
+            (group.count !== 1 ? "s" : "") +
+            ")</span></div>";
+          for (var s = 0; s < group.snippets.length; s++) {
+            var snippet = group.snippets[s];
             html +=
-              '<div class="result-title"><a class="result-title-link" href="' +
-              escHtml(grp.f) +
+              '<div class="result-snippet"><a class="result-anchor" href="' +
+              escHtml(group.f) +
+              "#" +
+              escHtml(snippet.a) +
               '" target="Client">' +
-              grp.titleHtml +
+              escHtml(snippet.a) +
               "</a>" +
-              (window.EE7Favorites
-                ? window.EE7Favorites.favoriteButtonHtml(
-                    { href: grp.f, title: grp.t },
-                    { compact: true },
-                  )
-                : "");
-            html +=
-              '<span class="result-count">(' +
-              grp.count +
-              " occurrence" +
-              (grp.count !== 1 ? "s" : "") +
-              ")</span></div>";
-            for (var s = 0; s < grp.snippets.length; s++) {
-              var snip = grp.snippets[s];
-              html +=
-                '<div class="result-snippet"><a class="result-anchor" href="' +
-                escHtml(grp.f) +
-                "#" +
-                escHtml(snip.a) +
-                '" target="Client">' +
-                escHtml(snip.a) +
-                "</a>" +
-                snip.html +
-                "</div>";
-            }
-            html += "</div>";
+              snippet.html +
+              "</div>";
           }
-          return html;
+          return html + "</div>";
+        }
+
+        function renderGroups(groups) {
+          return groups.map(renderGroup).join("");
+        }
+
+        function renderColumn(title, source, groups) {
+          var html =
+            '<section class="result-column result-column-' +
+            source +
+            '"><h2 class="result-column-title">' +
+            title +
+            ' <span class="result-column-count">(' +
+            groups.length +
+            ")</span></h2>";
+          html += groups.length
+            ? renderGroups(groups)
+            : '<p class="result-column-empty">No matches.</p>';
+          return html + "</section>";
+        }
+
+        function renderVisibleGroups() {
+          var results = document.getElementById("results");
+          var visible = _allResults.slice(0, _shownCount);
+          var showColumns = storiesInScope();
+          results.classList.toggle("two-column", showColumns);
+          if (!showColumns) {
+            results.innerHTML = renderGroups(visible);
+            return;
+          }
+          var discourseGroups = [];
+          var storyGroups = [];
+          for (var i = 0; i < visible.length; i++) {
+            if (visible[i].source === "stories") storyGroups.push(visible[i]);
+            else discourseGroups.push(visible[i]);
+          }
+          results.innerHTML =
+            renderColumn("Discourses", "discourses", discourseGroups) +
+            renderColumn("Baba stories", "stories", storyGroups);
         }
 
         function updateShowMore() {
@@ -659,9 +840,7 @@
           btn.onclick = function () {
             var next = _allResults.slice(_shownCount, _shownCount + PAGE_SIZE);
             _shownCount += next.length;
-            document
-              .getElementById("results")
-              .insertAdjacentHTML("beforeend", renderGroups(next));
+            renderVisibleGroups();
             updateShowMore();
             updateStatus();
           };
@@ -678,7 +857,7 @@
               : String(_allResults.length);
           document.getElementById("status").textContent =
             showing +
-            " discourse" +
+            " document" +
             (_allResults.length !== 1 ? "s" : "") +
             ", " +
             totalCount +
@@ -691,6 +870,9 @@
             st = document.getElementById("status"),
             hero = document.getElementById("hero");
           if (!allGroups.length) {
+            _allResults = [];
+            _shownCount = 0;
+            re.classList.remove("two-column");
             re.innerHTML = "";
             st.textContent = "No results found.";
             hero.classList.add("has-results");
@@ -698,7 +880,7 @@
           }
           _allResults = allGroups;
           _shownCount = Math.min(PAGE_SIZE, allGroups.length);
-          re.innerHTML = renderGroups(allGroups.slice(0, _shownCount));
+          renderVisibleGroups();
           updateShowMore();
           updateStatus();
           hero.classList.add("has-results");
@@ -719,24 +901,14 @@
           }, DEBOUNCE_MS);
         }
         function pickRandom() {
-          var pool;
-          if (!_activeFilter) {
-            // "All" — collect unique file paths from the search index
-            if (typeof searchIndex === "undefined") return;
-            var seen = Object.create(null);
-            pool = [];
-            for (var i = 0; i < searchIndex.length; i++) {
-              var f = searchIndex[i].f;
-              if (!seen[f]) {
-                seen[f] = true;
-                pool.push(f);
-              }
-            }
-          } else {
-            // Filtered — keys of _activeFilter are basenames like "Foo.html"
-            pool = Object.keys(_activeFilter).map(function (fn) {
-              return "Discourses/" + fn;
-            });
+          if (typeof searchIndex === "undefined") return;
+          var seen = Object.create(null);
+          var pool = [];
+          for (var i = 0; i < searchIndex.length; i++) {
+            var entry = searchIndex[i];
+            if (!inScope(entry) || seen[entry.f]) continue;
+            seen[entry.f] = true;
+            pool.push(entry.f);
           }
           if (!pool.length) return;
           // Persist pool so the parent frame can offer a "next random" button
@@ -784,6 +956,7 @@
           });
 
         window.addEventListener("load", function () {
+          initCorpusToggle();
           buildFilterBar();
           var inp = document.getElementById("search-input");
           inp.addEventListener("input", onInput);
