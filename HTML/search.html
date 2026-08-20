@@ -236,6 +236,43 @@
       #results.two-column #show-more-btn {
         grid-column: 1 / -1;
       }
+
+      /* Mobile result tabs */
+      #mobile-result-tabs {
+        display: none;
+      }
+      .mobile-result-tab {
+        min-width: 0;
+        padding: 9px 8px 10px;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: none;
+        color: var(--text-dim);
+        font-family: inherit;
+        font-size: 8.5pt;
+        line-height: 1.3;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          color 0.15s;
+      }
+      .mobile-result-tab:hover {
+        color: var(--accent);
+      }
+      .mobile-result-tab[aria-selected="true"] {
+        border-bottom-color: var(--accent);
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .mobile-result-tab:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+      }
+      .mobile-result-tab-count {
+        color: var(--text-dim);
+        font-size: 7.5pt;
+        font-weight: 400;
+      }
       .result-group {
         margin-top: 22px;
         padding-bottom: 18px;
@@ -393,11 +430,24 @@
         font-weight: 600;
       }
       @media (max-width: 680px) {
+        #mobile-result-tabs.visible {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0;
+          margin-top: 16px;
+          border-bottom: 1px solid var(--border);
+        }
         #results.two-column {
           display: block;
         }
         .result-column + .result-column {
-          margin-top: 34px;
+          margin-top: 0;
+        }
+        #results.two-column[data-active-tab="discourses"]
+          .result-column-stories,
+        #results.two-column[data-active-tab="stories"]
+          .result-column-discourses {
+          display: none;
         }
       }
     </style>
@@ -477,6 +527,12 @@
       </div>
 
       <div id="status"></div>
+      <div
+        id="mobile-result-tabs"
+        role="tablist"
+        aria-label="Search result type"
+        aria-hidden="true"
+      ></div>
       <div id="results"></div>
     </div>
 
@@ -520,6 +576,7 @@
         var FILTER_KEY = "ee7-active-filter";
         var _includeStories = false;
         var STORIES_KEY = "ee7-include-stories";
+        var _activeMobileTab = null;
 
         function buildFilterBar() {
           var bar = document.getElementById("filter-bar");
@@ -791,7 +848,11 @@
 
         function renderColumn(title, source, groups) {
           var html =
-            '<section class="result-column result-column-' +
+            '<section id="result-column-' +
+            source +
+            '" class="result-column result-column-' +
+            source +
+            '" aria-labelledby="mobile-tab-' +
             source +
             '"><h2 class="result-column-title">' +
             title +
@@ -804,12 +865,95 @@
           return html + "</section>";
         }
 
+        function countResultsBySource(source) {
+          var count = 0;
+          for (var i = 0; i < _allResults.length; i++) {
+            if (_allResults[i].source === source) count++;
+          }
+          return count;
+        }
+
+        function mobileTabHtml(source, title, count, activeSource) {
+          var selected = source === activeSource;
+          return (
+            '<button id="mobile-tab-' +
+            source +
+            '" class="mobile-result-tab" type="button" role="tab"' +
+            ' data-source="' +
+            source +
+            '" aria-controls="result-column-' +
+            source +
+            '" aria-selected="' +
+            String(selected) +
+            '" tabindex="' +
+            (selected ? "0" : "-1") +
+            '">' +
+            title +
+            ' <span class="mobile-result-tab-count">(' +
+            count +
+            ")</span></button>"
+          );
+        }
+
+        function renderMobileTabs(activeSource) {
+          var tabs = document.getElementById("mobile-result-tabs");
+          tabs.innerHTML =
+            mobileTabHtml(
+              "discourses",
+              "Discourses",
+              countResultsBySource("discourses"),
+              activeSource,
+            ) +
+            mobileTabHtml(
+              "stories",
+              "Baba stories",
+              countResultsBySource("stories"),
+              activeSource,
+            );
+          tabs.classList.add("visible");
+          tabs.setAttribute("aria-hidden", "false");
+        }
+
+        function hideMobileTabs() {
+          var tabs = document.getElementById("mobile-result-tabs");
+          tabs.classList.remove("visible");
+          tabs.setAttribute("aria-hidden", "true");
+          tabs.innerHTML = "";
+        }
+
+        function chooseMobileTab(discourseGroups, storyGroups) {
+          var discourseCount = countResultsBySource("discourses");
+          var storyCount = countResultsBySource("stories");
+          if (_activeMobileTab === "discourses" && discourseCount) {
+            return "discourses";
+          }
+          if (_activeMobileTab === "stories" && storyCount) return "stories";
+          if (discourseGroups.length) return "discourses";
+          if (storyGroups.length) return "stories";
+          return discourseCount ? "discourses" : "stories";
+        }
+
+        function setMobileTab(source) {
+          _activeMobileTab = source;
+          var results = document.getElementById("results");
+          if (!results.classList.contains("two-column")) return;
+          results.setAttribute("data-active-tab", source);
+          var buttons = document.querySelectorAll(".mobile-result-tab");
+          for (var i = 0; i < buttons.length; i++) {
+            var selected = buttons[i].getAttribute("data-source") === source;
+            buttons[i].setAttribute("aria-selected", String(selected));
+            buttons[i].setAttribute("tabindex", selected ? "0" : "-1");
+          }
+        }
+
         function renderVisibleGroups() {
           var results = document.getElementById("results");
           var visible = _allResults.slice(0, _shownCount);
           var showColumns = storiesInScope();
           results.classList.toggle("two-column", showColumns);
           if (!showColumns) {
+            results.removeAttribute("data-active-tab");
+            hideMobileTabs();
             results.innerHTML = renderGroups(visible);
             return;
           }
@@ -819,6 +963,9 @@
             if (visible[i].source === "stories") storyGroups.push(visible[i]);
             else discourseGroups.push(visible[i]);
           }
+          var activeTab = chooseMobileTab(discourseGroups, storyGroups);
+          results.setAttribute("data-active-tab", activeTab);
+          renderMobileTabs(activeTab);
           results.innerHTML =
             renderColumn("Discourses", "discourses", discourseGroups) +
             renderColumn("Baba stories", "stories", storyGroups);
@@ -873,6 +1020,8 @@
             _allResults = [];
             _shownCount = 0;
             re.classList.remove("two-column");
+            re.removeAttribute("data-active-tab");
+            hideMobileTabs();
             re.innerHTML = "";
             st.textContent = "No results found.";
             hero.classList.add("has-results");
@@ -891,6 +1040,9 @@
           var q = document.getElementById("search-input").value;
           if (normalize(q.trim()).length < MIN_QUERY) {
             document.getElementById("results").innerHTML = "";
+            document.getElementById("results").classList.remove("two-column");
+            document.getElementById("results").removeAttribute("data-active-tab");
+            hideMobileTabs();
             document.getElementById("status").textContent = "";
             document.getElementById("hero").classList.remove("has-results");
             return;
@@ -953,6 +1105,41 @@
             window.EE7Favorites.syncFavoriteButtons(
               document.getElementById("results"),
             );
+          });
+
+        document
+          .getElementById("mobile-result-tabs")
+          .addEventListener("click", function (e) {
+            var tab = e.target.closest(".mobile-result-tab");
+            if (!tab) return;
+            setMobileTab(tab.getAttribute("data-source"));
+          });
+
+        document
+          .getElementById("mobile-result-tabs")
+          .addEventListener("keydown", function (e) {
+            var tab = e.target.closest(".mobile-result-tab");
+            if (!tab) return;
+            var buttons = Array.prototype.slice.call(
+              document.querySelectorAll(".mobile-result-tab"),
+            );
+            var index = buttons.indexOf(tab);
+            var nextIndex = index;
+            if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+              nextIndex = (index + 1) % buttons.length;
+            } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+              nextIndex = (index - 1 + buttons.length) % buttons.length;
+            } else if (e.key === "Home") {
+              nextIndex = 0;
+            } else if (e.key === "End") {
+              nextIndex = buttons.length - 1;
+            } else {
+              return;
+            }
+            e.preventDefault();
+            var next = buttons[nextIndex];
+            next.focus();
+            setMobileTab(next.getAttribute("data-source"));
           });
 
         window.addEventListener("load", function () {
