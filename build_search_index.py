@@ -2,11 +2,10 @@
 """
 Build the full-text search index for EE7.
 
-The index contains the existing discourse paragraphs and, when the Stories/
-directory is present, bounded passages from the Baba story books. Discourse
-entries link to HTML/Discourses/*.html. Story entries link to generated
-HTML/Stories/*.html pages so every result remains readable from the static
-site.
+The index contains the existing discourse paragraphs and bounded passages
+from the Markdown book collections. Discourse entries link to
+HTML/Discourses/*.html. Markdown entries link to generated HTML pages so every
+result remains readable from the static site.
 
 The generated JavaScript uses short field names to keep the browser payload
 small:
@@ -26,6 +25,10 @@ from pathlib import Path
 DISCOURSES_DIR = Path("HTML") / "Discourses"
 STORIES_DIR = Path("Stories")
 STORY_PAGES_DIR = Path("HTML") / "Stories"
+OTHER_SPIRITUAL_BOOKS_DIR = Path("Other-Spiritual-Books")
+OTHER_SPIRITUAL_BOOK_PAGES_DIR = Path("HTML") / "Other-Spiritual-Books"
+ACHARYA_PHILOSOPHY_DIR = Path("Acharya-Philosophy")
+ACHARYA_PHILOSOPHY_PAGES_DIR = Path("HTML") / "Acharya-Philosophy"
 OUTPUT_FILE = Path("HTML") / "search_index.js"
 
 MIN_PARA_LEN = 30
@@ -85,7 +88,7 @@ def normalize_for_comparison(text):
     without_marks = "".join(
         char for char in decomposed if not unicodedata.combining(char)
     )
-    return normalize_whitespace(without_marks).casefold()
+    return re.sub(r"[\W_]+", "", without_marks.casefold())
 
 
 def humanize_filename(stem):
@@ -443,7 +446,12 @@ def story_document(path):
         first_heading = markdown_to_text(blocks[0][1])
         if normalize_for_comparison(first_heading) == normalize_for_comparison(title):
             blocks = blocks[1:]
-    return title, metadata.get("source_pdf", ""), story_chunks(blocks)
+    source_reference = (
+        metadata.get("source_pdf", "")
+        or metadata.get("source_epub", "")
+        or metadata.get("source_docx", "")
+    )
+    return title, source_reference, story_chunks(blocks)
 
 
 def render_story_block_html(text):
@@ -487,7 +495,14 @@ def render_story_block_html(text):
     return "\n".join(rendered)
 
 
-def write_story_page(output_path, title, source_pdf, chunks):
+def write_story_page(
+    output_path,
+    title,
+    source_reference,
+    chunks,
+    page_label="Baba stories",
+    source_label="Baba story book",
+):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     page = [
         "<!doctype html>",
@@ -495,7 +510,7 @@ def write_story_page(output_path, title, source_pdf, chunks):
         "<head>",
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
-        f"<title>{html.escape(title)} - Baba stories</title>",
+        f"<title>{html.escape(title)} - {html.escape(page_label)}</title>",
         "<style>",
         ":root { color-scheme: dark; --bg: #2e2a24; --text: #ddd5c8; --dim: #a09088; --accent: #e07820; --border: #4a3c30; }",
         "* { box-sizing: border-box; }",
@@ -513,8 +528,8 @@ def write_story_page(output_path, title, source_pdf, chunks):
         "<body>",
         f"<h1>{html.escape(title)}</h1>",
         (
-            f'<p class="source">Baba story book'
-            + (f": {html.escape(source_pdf)}" if source_pdf else "")
+            f'<p class="source">{html.escape(source_label)}'
+            + (f": {html.escape(source_reference)}" if source_reference else "")
             + "</p>"
         ),
     ]
@@ -526,17 +541,73 @@ def write_story_page(output_path, title, source_pdf, chunks):
     output_path.write_text("\n".join(page), encoding="utf-8")
 
 
-def iter_story_files(stories_dir):
-    if not stories_dir.is_dir():
+def iter_markdown_files(source_dir):
+    if not source_dir.is_dir():
         return []
     return sorted(
         (
             path
-            for path in stories_dir.rglob("*")
+            for path in source_dir.rglob("*")
             if path.is_file() and path.suffix.lower() in {".md", ".markdown"}
         ),
-        key=lambda path: path.relative_to(stories_dir).as_posix().casefold(),
+        key=lambda path: path.relative_to(source_dir).as_posix().casefold(),
     )
+
+
+def add_markdown_source(
+    entries,
+    source_dir,
+    pages_dir,
+    source_name,
+    page_label,
+    source_label,
+):
+    file_count = 0
+    skipped = 0
+    entry_count = 0
+    page_count = 0
+    source_dir = source_dir.expanduser()
+    if not source_dir.is_dir():
+        print(f"{source_label} directory not found, omitting source: {source_dir}")
+        return file_count, skipped, entry_count, page_count
+
+    page_prefix = pages_dir.relative_to(Path("HTML")).as_posix()
+    for filepath in iter_markdown_files(source_dir):
+        try:
+            title, source_reference, chunks = story_document(filepath)
+        except OSError as exc:
+            print(f"WARNING: Could not read {source_label.lower()} {filepath}: {exc}")
+            skipped += 1
+            continue
+        if not title or not chunks:
+            skipped += 1
+            continue
+
+        relative = filepath.relative_to(source_dir)
+        page_relative = Path(page_prefix) / relative.with_suffix(".html")
+        write_story_page(
+            pages_dir / relative.with_suffix(".html"),
+            title,
+            source_reference,
+            chunks,
+            page_label=page_label,
+            source_label=source_label,
+        )
+        page_count += 1
+        for anchor, text in chunks:
+            entries.append(
+                {
+                    "t": title,
+                    "f": page_relative.as_posix(),
+                    "a": anchor,
+                    "x": text,
+                    "s": source_name,
+                }
+            )
+        file_count += 1
+        entry_count += len(chunks)
+
+    return file_count, skipped, entry_count, page_count
 
 
 def write_search_index(entries):
@@ -556,6 +627,24 @@ def main():
         type=Path,
         default=STORIES_DIR,
         help=f"Baba story Markdown directory (default: {STORIES_DIR})",
+    )
+    parser.add_argument(
+        "--other-spiritual-books-dir",
+        type=Path,
+        default=OTHER_SPIRITUAL_BOOKS_DIR,
+        help=(
+            "Other spiritual books Markdown directory "
+            f"(default: {OTHER_SPIRITUAL_BOOKS_DIR})"
+        ),
+    )
+    parser.add_argument(
+        "--acharya-philosophy-dir",
+        type=Path,
+        default=ACHARYA_PHILOSOPHY_DIR,
+        help=(
+            "Acharya philosophy Markdown directory "
+            f"(default: {ACHARYA_PHILOSOPHY_DIR})"
+        ),
     )
     args = parser.parse_args()
 
@@ -592,46 +681,46 @@ def main():
         discourse_file_count += 1
         discourse_entry_count += len(paragraphs)
 
-    story_file_count = 0
-    story_skipped = 0
-    story_entry_count = 0
-    story_page_count = 0
-    stories_dir = args.stories_dir.expanduser()
-    if stories_dir.is_dir():
-        for filepath in iter_story_files(stories_dir):
-            try:
-                title, source_pdf, chunks = story_document(filepath)
-            except OSError as exc:
-                print(f"WARNING: Could not read story {filepath}: {exc}")
-                story_skipped += 1
-                continue
-            if not title or not chunks:
-                story_skipped += 1
-                continue
-
-            relative = filepath.relative_to(stories_dir)
-            page_relative = Path("Stories") / relative.with_suffix(".html")
-            write_story_page(
-                STORY_PAGES_DIR / relative.with_suffix(".html"),
-                title,
-                source_pdf,
-                chunks,
-            )
-            story_page_count += 1
-            for anchor, text in chunks:
-                entries.append(
-                    {
-                        "t": title,
-                        "f": page_relative.as_posix(),
-                        "a": anchor,
-                        "x": text,
-                        "s": "stories",
-                    }
-                )
-            story_file_count += 1
-            story_entry_count += len(chunks)
-    else:
-        print(f"Baba story directory not found, omitting stories: {stories_dir}")
+    markdown_sources = (
+        (
+            "stories",
+            args.stories_dir,
+            STORY_PAGES_DIR,
+            "Baba stories",
+            "Baba story book",
+        ),
+        (
+            "other_spiritual_books",
+            args.other_spiritual_books_dir,
+            OTHER_SPIRITUAL_BOOK_PAGES_DIR,
+            "Other spiritual books",
+            "Other spiritual book",
+        ),
+        (
+            "acharya_philosophy",
+            args.acharya_philosophy_dir,
+            ACHARYA_PHILOSOPHY_PAGES_DIR,
+            "Acharya philosophy",
+            "Acharya philosophy book",
+        ),
+    )
+    markdown_stats = {}
+    for source_name, source_dir, pages_dir, page_label, source_label in markdown_sources:
+        file_count, skipped, entry_count, page_count = add_markdown_source(
+            entries,
+            source_dir,
+            pages_dir,
+            source_name,
+            page_label,
+            source_label,
+        )
+        markdown_stats[source_name] = {
+            "files": file_count,
+            "skipped": skipped,
+            "entries": entry_count,
+            "pages": page_count,
+            "label": page_label,
+        }
 
     write_search_index(entries)
 
@@ -639,10 +728,12 @@ def main():
     print(f"  Discourses indexed : {discourse_file_count}")
     print(f"  Discourses skipped : {discourse_skipped}")
     print(f"  Discourse entries  : {discourse_entry_count}")
-    print(f"  Baba books indexed : {story_file_count}")
-    print(f"  Baba books skipped : {story_skipped}")
-    print(f"  Baba entries       : {story_entry_count}")
-    print(f"  Story pages        : {story_page_count}")
+    for source_name in ("stories", "other_spiritual_books", "acharya_philosophy"):
+        stats = markdown_stats[source_name]
+        print(f"  {stats['label']} indexed : {stats['files']}")
+        print(f"  {stats['label']} skipped : {stats['skipped']}")
+        print(f"  {stats['label']} entries : {stats['entries']}")
+        print(f"  {stats['label']} pages   : {stats['pages']}")
     print(f"  Total entries      : {len(entries)}")
     print(f"  Output             : {OUTPUT_FILE}")
     return 0

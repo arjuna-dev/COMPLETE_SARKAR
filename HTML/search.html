@@ -153,6 +153,12 @@
         border-color: var(--input-focus);
         box-shadow: 0 0 0 3px var(--accent-dim);
       }
+      #search-input:disabled {
+        border-color: var(--border);
+        box-shadow: none;
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
       #search-input::-webkit-search-cancel-button {
         -webkit-appearance: none;
       }
@@ -189,11 +195,29 @@
         color: var(--accent);
         background: var(--accent-dim);
       }
+      #random-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+      #random-btn:disabled:hover {
+        border-color: var(--border);
+        color: var(--text-dim);
+        background: none;
+      }
       #search-hint {
         margin-top: 9px;
         font-size: 7.5pt;
         color: var(--text-dim);
         text-align: center;
+      }
+      #search-mode-note {
+        margin: 5px 0 0;
+        padding: 9px 12px;
+        border-left: 2px solid var(--accent);
+        background: var(--accent-dim);
+        color: var(--text-mid);
+        font-size: 8.5pt;
+        line-height: 1.45;
       }
 
       /* Status */
@@ -205,11 +229,8 @@
       }
 
       /* Results */
-      #results.two-column {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 28px;
-        align-items: start;
+      #results.multi-column {
+        display: block;
       }
       .result-column {
         min-width: 0;
@@ -233,13 +254,16 @@
         font-size: 8.5pt;
         font-style: italic;
       }
-      #results.two-column #show-more-btn {
-        grid-column: 1 / -1;
-      }
-
-      /* Mobile result tabs */
+      /* Result tabs */
       #mobile-result-tabs {
         display: none;
+      }
+      #mobile-result-tabs.visible {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0;
+        margin-top: 16px;
+        border-bottom: 1px solid var(--border);
       }
       .mobile-result-tab {
         min-width: 0;
@@ -272,6 +296,19 @@
         color: var(--text-dim);
         font-size: 7.5pt;
         font-weight: 400;
+      }
+      #results.multi-column[data-active-tab] .result-column {
+        display: none;
+      }
+      #results.multi-column[data-active-tab="discourses"]
+        .result-column-discourses,
+      #results.multi-column[data-active-tab="stories"]
+        .result-column-stories,
+      #results.multi-column[data-active-tab="other_spiritual_books"]
+        .result-column-other_spiritual_books,
+      #results.multi-column[data-active-tab="acharya_philosophy"]
+        .result-column-acharya_philosophy {
+        display: block;
       }
       .result-group {
         margin-top: 22px;
@@ -371,26 +408,111 @@
         background: var(--accent-dim);
       }
 
-      /* Corpus scope toggle */
-      #corpus-toggle {
+      /* Corpus source picker */
+      #corpus-picker {
+        position: relative;
+        display: inline-block;
+        margin-top: 12px;
+      }
+      #corpus-picker-toggle {
         display: inline-flex;
         align-items: center;
-        gap: 7px;
-        margin-top: 12px;
+        gap: 9px;
+        min-width: 224px;
+        padding: 7px 11px 7px 13px;
+        border: 1px solid var(--input-border);
+        border-radius: 5px;
+        background: var(--input-bg);
+        color: var(--text-mid);
+        font-family: inherit;
+        font-size: 8.5pt;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          color 0.15s,
+          background 0.15s;
+      }
+      #corpus-picker-toggle:hover,
+      #corpus-picker-toggle[aria-expanded="true"] {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: var(--accent-dim);
+      }
+      #corpus-picker-toggle:focus-visible,
+      .corpus-option:focus-within {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .corpus-picker-title {
+        color: var(--text);
+        font-weight: 700;
+      }
+      #corpus-picker-summary {
+        flex: 1;
+        color: var(--text-dim);
+        text-align: right;
+      }
+      #corpus-picker-chevron {
+        transition: transform 0.15s;
+      }
+      #corpus-picker-toggle[aria-expanded="true"] #corpus-picker-chevron {
+        transform: rotate(180deg);
+      }
+      #corpus-picker-menu {
+        position: absolute;
+        z-index: 5;
+        top: calc(100% + 8px);
+        left: 50%;
+        width: min(320px, calc(100vw - 48px));
+        padding: 8px;
+        border: 1px solid var(--input-border);
+        border-radius: 7px;
+        background: var(--input-bg);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+        transform: translateX(-50%);
+      }
+      #corpus-picker-menu[hidden] {
+        display: none;
+      }
+      .corpus-option {
+        display: inline-flex;
+        align-items: center;
+        width: 100%;
+        gap: 9px;
+        padding: 9px 8px;
         color: var(--text-mid);
         font-size: 8.5pt;
         cursor: pointer;
         user-select: none;
+        text-align: left;
+        transition: background 0.15s, color 0.15s;
       }
-      #corpus-toggle input {
+      .corpus-option:hover {
+        border-radius: 4px;
+        background: var(--accent-dim);
+        color: var(--text);
+      }
+      .corpus-option input {
         width: 14px;
         height: 14px;
         margin: 0;
         accent-color: var(--accent);
       }
-      #corpus-toggle.disabled {
-        cursor: default;
+      .corpus-option.disabled {
         opacity: 0.55;
+        cursor: default;
+      }
+      .corpus-option.disabled:hover {
+        background: none;
+        color: var(--text-mid);
+      }
+      .corpus-picker-note {
+        padding: 7px 8px 4px;
+        border-top: 1px solid var(--border);
+        color: var(--text-dim);
+        font-size: 7.5pt;
+        line-height: 1.4;
       }
 
       /* ── Filter chips ──────────────────────────────────────── */
@@ -429,27 +551,6 @@
         color: var(--accent);
         font-weight: 600;
       }
-      @media (max-width: 680px) {
-        #mobile-result-tabs.visible {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 0;
-          margin-top: 16px;
-          border-bottom: 1px solid var(--border);
-        }
-        #results.two-column {
-          display: block;
-        }
-        .result-column + .result-column {
-          margin-top: 0;
-        }
-        #results.two-column[data-active-tab="discourses"]
-          .result-column-stories,
-        #results.two-column[data-active-tab="stories"]
-          .result-column-discourses {
-          display: none;
-        }
-      }
     </style>
   </head>
   <body>
@@ -459,7 +560,7 @@
           <div>
             <p id="hero-title">Works of P.R. Sarkar</p>
             <p id="hero-sub">
-              Full-text search across 1,600+ discourses, with optional Baba stories
+              Full-text search across 1,600+ discourses and a wider spiritual library
             </p>
           </div>
           <img id="hero-photo" src="Images/Sarkar.jpg" alt="P.R. Sarkar" />
@@ -475,6 +576,7 @@
               spellcheck="false"
               placeholder="Search discourses…"
               aria-label="Search discourses"
+              aria-describedby="search-hint"
             />
             <svg
               id="search-icon"
@@ -493,8 +595,9 @@
           <button
             id="random-btn"
             type="button"
-            aria-label="Open a random discourse or Baba story"
-            title="Random discourse or Baba story"
+            aria-label="Open a random selected source"
+            aria-describedby="search-hint"
+            title="Random selected source"
           >
             <svg
               width="15"
@@ -515,22 +618,86 @@
             </svg>
           </button>
         </div>
-        <p id="search-hint">
-          Type at least 3 characters &nbsp;·&nbsp; diacritics ignored:
-          <em>siva</em> finds <em>Śiva</em>
+        <p id="search-hint" aria-live="polite">
+          <span id="search-hint-default">
+            Type at least 3 characters &nbsp;·&nbsp; diacritics ignored:
+            <em>siva</em> finds <em>Śiva</em>
+          </span>
+          <span id="search-hint-disabled" hidden>
+            Select at least one source in Search sources to enable search.
+          </span>
         </p>
-        <label id="corpus-toggle">
-          <input id="include-stories" type="checkbox" />
-          <span>Include Baba stories</span>
-        </label>
+        <div id="corpus-picker">
+          <button
+            id="corpus-picker-toggle"
+            type="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="corpus-picker-menu"
+          >
+            <span class="corpus-picker-title">Search sources</span>
+            <span id="corpus-picker-summary">Discourses only</span>
+            <svg
+              id="corpus-picker-chevron"
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m2.5 4.5 3.5 3.5 3.5-3.5" />
+            </svg>
+          </button>
+          <div
+            id="corpus-picker-menu"
+            role="group"
+            aria-label="Search sources"
+            hidden
+          >
+            <label class="corpus-option" data-corpus-option="discourses">
+              <input
+                type="checkbox"
+                data-corpus-source="discourses"
+                checked
+              />
+              <span>Discourses</span>
+            </label>
+            <label class="corpus-option" data-corpus-option="stories">
+              <input type="checkbox" data-corpus-source="stories" />
+              <span>Baba Stories</span>
+            </label>
+            <label
+              class="corpus-option"
+              data-corpus-option="other_spiritual_books"
+            >
+              <input type="checkbox" data-corpus-source="other_spiritual_books" />
+              <span>Other Spiritual Books</span>
+            </label>
+            <label
+              class="corpus-option"
+              data-corpus-option="acharya_philosophy"
+            >
+              <input type="checkbox" data-corpus-source="acharya_philosophy" />
+              <span>Acharya Philosophy</span>
+            </label>
+            <p class="corpus-picker-note">
+              Choose any combination of sources. Only Discourses starts selected.
+            </p>
+          </div>
+        </div>
         <div id="filter-bar" class="hidden" aria-label="Filter by set"></div>
       </div>
 
       <div id="status"></div>
+      <div id="search-mode-note" aria-live="polite" hidden></div>
       <div
         id="mobile-result-tabs"
         role="tablist"
-        aria-label="Search result type"
+        aria-label="Search result category"
         aria-hidden="true"
       ></div>
       <div id="results"></div>
@@ -563,19 +730,44 @@
           MAX_SNIPPETS = 3,
           CONTEXT_LEN = 100,
           DEBOUNCE_MS = 200,
-          MIN_QUERY = 3;
+          MIN_QUERY = 3,
+          FUZZY_MIN_TERM_LENGTH = 4,
+          FUZZY_MAX_DISTANCE = 2,
+          FUZZY_MAX_RESULTS = 30;
 
         // State for incremental loading
         var _allResults = [],
-          _shownCount = 0;
+          _shownCount = 0,
+          _isFuzzySearch = false;
 
-        // Filter state. A custom filter set applies to discourse files;
-        // the corpus toggle controls whether story entries are included.
+        var SOURCE_DEFINITIONS = {
+          discourses: { label: "Discourses", resultLabel: "Discourse" },
+          stories: { label: "Baba Stories", resultLabel: "Baba story" },
+          other_spiritual_books: {
+            label: "Other Spiritual Books",
+            resultLabel: "Other spiritual book",
+          },
+          acharya_philosophy: {
+            label: "Acharya Philosophy",
+            resultLabel: "Acharya philosophy",
+          },
+        };
+        var SOURCE_ORDER = [
+          "discourses",
+          "stories",
+          "other_spiritual_books",
+          "acharya_philosophy",
+        ];
+
+        // Filter state. A custom filter set applies to discourse files and
+        // intentionally narrows the scope to those files.
         var _activeFilter = null;
         var _activeFilterName = null;
         var FILTER_KEY = "ee7-active-filter";
-        var _includeStories = false;
-        var STORIES_KEY = "ee7-include-stories";
+        var _selectedSources = { discourses: true };
+        var SOURCES_KEY = "ee7-corpus-sources";
+        var SOURCES_VERSION_KEY = "ee7-corpus-sources-version";
+        var LEGACY_STORIES_KEY = "ee7-include-stories";
         var _activeMobileTab = null;
 
         function buildFilterBar() {
@@ -626,7 +818,38 @@
         }
 
         function sourceOf(entry) {
-          return entry.s === "stories" ? "stories" : "discourses";
+          if (
+            entry &&
+            Object.prototype.hasOwnProperty.call(SOURCE_DEFINITIONS, entry.s)
+          ) {
+            return entry.s;
+          }
+          return "discourses";
+        }
+
+        function availableSources() {
+          var available = [];
+          if (typeof searchIndex === "undefined") return available;
+          for (var i = 0; i < SOURCE_ORDER.length; i++) {
+            var source = SOURCE_ORDER[i];
+            for (var j = 0; j < searchIndex.length; j++) {
+              if (sourceOf(searchIndex[j]) === source) {
+                available.push(source);
+                break;
+              }
+            }
+          }
+          return available;
+        }
+
+        function selectedSources() {
+          var sources = [];
+          for (var i = 0; i < SOURCE_ORDER.length; i++) {
+            if (_selectedSources[SOURCE_ORDER[i]]) {
+              sources.push(SOURCE_ORDER[i]);
+            }
+          }
+          return sources;
         }
 
         function inFilter(filePath, entry) {
@@ -638,64 +861,165 @@
         }
 
         function inScope(entry) {
-          if (sourceOf(entry) === "stories" && !_includeStories) return false;
+          var source = sourceOf(entry);
+          if (!_selectedSources[source]) return false;
           return inFilter(entry.f, entry);
         }
 
-        function storiesInScope() {
-          return _includeStories && !_activeFilter;
-        }
-
-        function updateCorpusToggle() {
-          var input = document.getElementById("include-stories");
-          var searchInput = document.getElementById("search-input");
-          input.checked = _includeStories;
-          input.setAttribute("aria-label", "Include Baba stories in search");
-          searchInput.placeholder = _includeStories
-            ? "Search discourses and Baba stories…"
-            : "Search discourses…";
-          searchInput.setAttribute(
-            "aria-label",
-            _includeStories
-              ? "Search discourses and Baba stories"
-              : "Search discourses",
-          );
-        }
-
-        function initCorpusToggle() {
-          var input = document.getElementById("include-stories");
-          var hasStories = false;
-          if (typeof searchIndex !== "undefined") {
-            for (var i = 0; i < searchIndex.length; i++) {
-              if (sourceOf(searchIndex[i]) === "stories") {
-                hasStories = true;
-                break;
-              }
+        function persistSelectedSources() {
+          var sources = [];
+          for (var i = 0; i < SOURCE_ORDER.length; i++) {
+            if (_selectedSources[SOURCE_ORDER[i]]) {
+              sources.push(SOURCE_ORDER[i]);
             }
           }
           try {
-            _includeStories = localStorage.getItem(STORIES_KEY) === "true";
+            localStorage.setItem(SOURCES_KEY, JSON.stringify(sources));
+            localStorage.setItem(SOURCES_VERSION_KEY, "2");
           } catch (e) {}
-          if (!hasStories) _includeStories = false;
-          input.disabled = !hasStories;
-          document
-            .getElementById("corpus-toggle")
-            .classList.toggle("disabled", !hasStories);
-          updateCorpusToggle();
-          input.addEventListener("change", function () {
-            _includeStories = input.checked;
+        }
+
+        function updateCorpusPicker() {
+          var summary = document.getElementById("corpus-picker-summary");
+          var searchInput = document.getElementById("search-input");
+          var randomButton = document.getElementById("random-btn");
+          var defaultHint = document.getElementById("search-hint-default");
+          var disabledHint = document.getElementById("search-hint-disabled");
+          var sources = selectedSources();
+          var noSources = sources.length === 0;
+          if (!sources.length) {
+            summary.textContent = "No sources selected";
+          } else if (sources.length === 1) {
+            summary.textContent =
+              SOURCE_DEFINITIONS[sources[0]].label + " only";
+          } else if (sources.length === 2) {
+            summary.textContent =
+              SOURCE_DEFINITIONS[sources[0]].label +
+              " + " +
+              SOURCE_DEFINITIONS[sources[1]].label;
+          } else {
+            summary.textContent = sources.length + " sources selected";
+          }
+          searchInput.placeholder =
+            noSources
+              ? "Select a source to enable search…"
+              : sources.length === 1
+                ? "Search " +
+                  SOURCE_DEFINITIONS[sources[0]].label.toLowerCase() +
+                  "…"
+                : "Search selected sources…";
+          searchInput.setAttribute(
+            "aria-label",
+            noSources
+              ? "Search disabled until a source is selected"
+              : sources.length === 1
+                ? "Search " + SOURCE_DEFINITIONS[sources[0]].label
+                : "Search selected corpus sources",
+          );
+          searchInput.disabled = noSources;
+          searchInput.setAttribute("aria-disabled", String(noSources));
+          randomButton.disabled = noSources;
+          randomButton.setAttribute(
+            "aria-label",
+            noSources
+              ? "Random source disabled until a source is selected"
+              : "Open a random selected source",
+          );
+          randomButton.setAttribute(
+            "title",
+            noSources
+              ? "Select at least one source to enable random selection"
+              : "Random selected source",
+          );
+          defaultHint.hidden = noSources;
+          disabledHint.hidden = !noSources;
+          var inputs = document.querySelectorAll("[data-corpus-source]");
+          for (var i = 0; i < inputs.length; i++) {
+            var input = inputs[i];
+            var source = input.getAttribute("data-corpus-source");
+            input.checked = !!_selectedSources[source];
+          }
+        }
+
+        function initCorpusPicker() {
+          var available = availableSources();
+          var hasSavedSources = false;
+          var savedSources = null;
+          try {
+            var saved = localStorage.getItem(SOURCES_KEY);
+            if (saved !== null) {
+              savedSources = JSON.parse(saved);
+              if (Array.isArray(savedSources)) {
+                hasSavedSources = true;
+                if (localStorage.getItem(SOURCES_VERSION_KEY) !== "2") {
+                  savedSources = ["discourses"].concat(savedSources);
+                }
+              }
+            }
+          } catch (e) {}
+          if (!hasSavedSources) {
             try {
-              localStorage.setItem(STORIES_KEY, String(_includeStories));
+              if (localStorage.getItem(LEGACY_STORIES_KEY) === "true") {
+                savedSources = ["discourses", "stories"];
+                hasSavedSources = true;
+              }
             } catch (e) {}
-            updateCorpusToggle();
-            rerunCurrentSearch();
+          }
+          if (!hasSavedSources) savedSources = ["discourses"];
+          _selectedSources = {};
+          for (var i = 0; i < SOURCE_ORDER.length; i++) {
+            var source = SOURCE_ORDER[i];
+            _selectedSources[source] =
+              available.indexOf(source) !== -1 &&
+              savedSources.indexOf(source) !== -1;
+          }
+
+          var inputs = document.querySelectorAll("[data-corpus-source]");
+          for (var j = 0; j < inputs.length; j++) {
+            var input = inputs[j];
+            var source = input.getAttribute("data-corpus-source");
+            var option = input.closest("[data-corpus-option]");
+            var isAvailable = available.indexOf(source) !== -1;
+            input.disabled = !isAvailable;
+            if (option) option.classList.toggle("disabled", !isAvailable);
+            input.addEventListener("change", function () {
+              var changedSource = this.getAttribute("data-corpus-source");
+              _selectedSources[changedSource] = this.checked;
+              persistSelectedSources();
+              updateCorpusPicker();
+              rerunCurrentSearch();
+            });
+          }
+          updateCorpusPicker();
+
+          var picker = document.getElementById("corpus-picker");
+          var toggle = document.getElementById("corpus-picker-toggle");
+          var menu = document.getElementById("corpus-picker-menu");
+          function closePicker() {
+            toggle.setAttribute("aria-expanded", "false");
+            menu.hidden = true;
+          }
+          toggle.addEventListener("click", function () {
+            var expanded = toggle.getAttribute("aria-expanded") === "true";
+            toggle.setAttribute("aria-expanded", String(!expanded));
+            menu.hidden = expanded;
+          });
+          document.addEventListener("click", function (event) {
+            if (!picker.contains(event.target)) closePicker();
+          });
+          document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+              closePicker();
+              toggle.focus();
+            }
           });
         }
 
         function rerunCurrentSearch() {
           var q = document.getElementById("search-input").value;
           if (normalize(q.trim()).length < MIN_QUERY) return;
-          renderResults(search(q));
+          var result = searchWithFallback(q);
+          renderResults(result.groups, result);
         }
 
         function normalize(s) {
@@ -713,6 +1037,68 @@
             pos = i + needle.length;
           }
           return out;
+        }
+        function wordTokens(normalizedText) {
+          var tokens = [],
+            pattern = /[\p{L}\p{N}]+/gu,
+            match;
+          while ((match = pattern.exec(normalizedText)) !== null) {
+            tokens.push({ value: match[0], index: match.index });
+          }
+          return tokens;
+        }
+        function fuzzyDistance(term, candidate, maxDistance) {
+          if (Math.abs(term.length - candidate.length) > maxDistance) {
+            return maxDistance + 1;
+          }
+          var shorter = term,
+            longer = candidate;
+          if (shorter.length > longer.length) {
+            shorter = candidate;
+            longer = term;
+          }
+          var previous = new Array(shorter.length + 1);
+          for (var j = 0; j <= shorter.length; j++) previous[j] = j;
+          for (var i = 1; i <= longer.length; i++) {
+            var current = new Array(shorter.length + 1);
+            current[0] = i;
+            for (var k = 1; k <= shorter.length; k++) {
+              var cost = longer.charAt(i - 1) === shorter.charAt(k - 1) ? 0 : 1;
+              current[k] = Math.min(
+                previous[k] + 1,
+                current[k - 1] + 1,
+                previous[k - 1] + cost,
+              );
+            }
+            previous = current;
+          }
+          return previous[shorter.length];
+        }
+        function findBestFuzzyToken(tokens, term, maxDistance) {
+          var best = null;
+          for (var i = 0; i < tokens.length; i++) {
+            var token = tokens[i];
+            if (Math.abs(term.length - token.value.length) > maxDistance) {
+              continue;
+            }
+            var distance = fuzzyDistance(term, token.value, maxDistance);
+            if (
+              distance <= maxDistance &&
+              (!best ||
+                distance < best.distance ||
+                (distance === best.distance &&
+                  Math.abs(term.length - token.value.length) <
+                    Math.abs(term.length - best.value.length)))
+            ) {
+              best = {
+                value: token.value,
+                index: token.index,
+                distance: distance,
+              };
+              if (distance === 0) break;
+            }
+          }
+          return best;
         }
         function escHtml(s) {
           return s
@@ -802,6 +1188,141 @@
             });
         }
 
+        function fuzzySearch(rawQuery) {
+          var normQ = normalize(rawQuery.trim());
+          if (normQ.length < MIN_QUERY) return [];
+          if (typeof searchIndex === "undefined") return [];
+          var queryTokens = wordTokens(normQ).filter(function (token) {
+            return token.value.length >= FUZZY_MIN_TERM_LENGTH;
+          });
+          if (!queryTokens.length) return [];
+
+          var map = Object.create(null),
+            order = 0;
+          for (var i = 0; i < searchIndex.length; i++) {
+            var entry = searchIndex[i];
+            if (!inScope(entry)) continue;
+            var normTitle = normalize(entry.t),
+              titleTokens = wordTokens(normTitle),
+              normX = normalize(entry.x),
+              bodyTokens = wordTokens(normX),
+              score = 0,
+              allMatched = true,
+              titleMatches = [],
+              bodyMatches = [];
+
+            for (var q = 0; q < queryTokens.length; q++) {
+              var term = queryTokens[q].value;
+              var maxDistance = Math.min(
+                FUZZY_MAX_DISTANCE,
+                Math.max(1, Math.floor(term.length / 4)),
+              );
+              var titleMatch = findBestFuzzyToken(
+                titleTokens,
+                term,
+                maxDistance,
+              );
+              var bodyMatch = findBestFuzzyToken(
+                bodyTokens,
+                term,
+                maxDistance,
+              );
+              if (!titleMatch && !bodyMatch) {
+                allMatched = false;
+                break;
+              }
+              var chosenMatch =
+                titleMatch &&
+                (!bodyMatch || titleMatch.distance <= bodyMatch.distance)
+                  ? titleMatch
+                  : bodyMatch;
+              score += chosenMatch.distance / maxDistance;
+              score += chosenMatch === titleMatch ? -0.35 : 0.1;
+              if (titleMatch) titleMatches.push(titleMatch);
+              if (bodyMatch) bodyMatches.push(bodyMatch);
+            }
+            if (!allMatched) continue;
+
+            var group = map[entry.f];
+            if (!group) {
+              group = map[entry.f] = {
+                t: entry.t,
+                titleHtml: escHtml(entry.t),
+                f: entry.f,
+                source: sourceOf(entry),
+                count: 1,
+                fuzzy: true,
+                fuzzyScore: Infinity,
+                order: order++,
+                snippets: [],
+              };
+            }
+            if (score >= group.fuzzyScore) continue;
+            group.fuzzyScore = score;
+
+            var bestTitleMatch = null;
+            for (var titleIndex = 0; titleIndex < titleMatches.length; titleIndex++) {
+              if (
+                !bestTitleMatch ||
+                titleMatches[titleIndex].distance < bestTitleMatch.distance
+              ) {
+                bestTitleMatch = titleMatches[titleIndex];
+              }
+            }
+            group.titleHtml = bestTitleMatch
+              ? highlightMatches(
+                  entry.t,
+                  [bestTitleMatch.index],
+                  bestTitleMatch.value.length,
+                )
+              : escHtml(entry.t);
+
+            group.snippets = [];
+            for (var bodyIndex = 0; bodyIndex < bodyMatches.length; bodyIndex++) {
+              var bodyMatch = bodyMatches[bodyIndex];
+              var duplicate = false;
+              for (var seenIndex = 0; seenIndex < group.snippets.length; seenIndex++) {
+                if (group.snippets[seenIndex].a === entry.a) {
+                  duplicate = true;
+                  break;
+                }
+              }
+              if (duplicate) continue;
+              group.snippets.push({
+                a: entry.a,
+                html: makeSnippet(
+                  entry.x,
+                  normX,
+                  bodyMatch.index,
+                  bodyMatch.value.length,
+                ),
+              });
+              if (group.snippets.length >= MAX_SNIPPETS) break;
+            }
+          }
+          return Object.keys(map)
+            .map(function (key) {
+              return map[key];
+            })
+            .sort(function (a, b) {
+              return a.fuzzyScore - b.fuzzyScore || a.order - b.order;
+            })
+            .slice(0, FUZZY_MAX_RESULTS);
+        }
+
+        function searchWithFallback(rawQuery) {
+          var exactResults = search(rawQuery);
+          if (exactResults.length) {
+            return { groups: exactResults, fuzzy: false };
+          }
+          var fuzzyResults = fuzzySearch(rawQuery);
+          return {
+            groups: fuzzyResults,
+            fuzzy: true,
+            query: rawQuery.trim(),
+          };
+        }
+
         function renderGroup(group) {
           var html = '<div class="result-group">';
           html +=
@@ -818,14 +1339,15 @@
               : "");
           html +=
             '<span class="result-source">' +
-            (group.source === "stories" ? "Baba story" : "Discourse") +
+            SOURCE_DEFINITIONS[group.source].resultLabel +
             "</span>";
-          html +=
-            '<span class="result-count">(' +
-            group.count +
-            " occurrence" +
-            (group.count !== 1 ? "s" : "") +
-            ")</span></div>";
+          html += group.fuzzy
+            ? '<span class="result-count">(approximate match)</span></div>'
+            : '<span class="result-count">(' +
+              group.count +
+              " occurrence" +
+              (group.count !== 1 ? "s" : "") +
+              ")</span></div>";
           for (var s = 0; s < group.snippets.length; s++) {
             var snippet = group.snippets[s];
             html +=
@@ -897,19 +1419,16 @@
 
         function renderMobileTabs(activeSource) {
           var tabs = document.getElementById("mobile-result-tabs");
-          tabs.innerHTML =
-            mobileTabHtml(
-              "discourses",
-              "Discourses",
-              countResultsBySource("discourses"),
-              activeSource,
-            ) +
-            mobileTabHtml(
-              "stories",
-              "Baba stories",
-              countResultsBySource("stories"),
-              activeSource,
-            );
+          tabs.innerHTML = selectedSources()
+            .map(function (source) {
+              return mobileTabHtml(
+                source,
+                SOURCE_DEFINITIONS[source].label,
+                countResultsBySource(source),
+                activeSource,
+              );
+            })
+            .join("");
           tabs.classList.add("visible");
           tabs.setAttribute("aria-hidden", "false");
         }
@@ -921,22 +1440,25 @@
           tabs.innerHTML = "";
         }
 
-        function chooseMobileTab(discourseGroups, storyGroups) {
-          var discourseCount = countResultsBySource("discourses");
-          var storyCount = countResultsBySource("stories");
-          if (_activeMobileTab === "discourses" && discourseCount) {
-            return "discourses";
+        function chooseMobileTab(groupsBySource) {
+          var sources = selectedSources();
+          if (
+            _activeMobileTab &&
+            sources.indexOf(_activeMobileTab) !== -1 &&
+            groupsBySource[_activeMobileTab].length
+          ) {
+            return _activeMobileTab;
           }
-          if (_activeMobileTab === "stories" && storyCount) return "stories";
-          if (discourseGroups.length) return "discourses";
-          if (storyGroups.length) return "stories";
-          return discourseCount ? "discourses" : "stories";
+          for (var i = 0; i < sources.length; i++) {
+            if (groupsBySource[sources[i]].length) return sources[i];
+          }
+          return sources[0];
         }
 
         function setMobileTab(source) {
           _activeMobileTab = source;
           var results = document.getElementById("results");
-          if (!results.classList.contains("two-column")) return;
+          if (!results.classList.contains("multi-column")) return;
           results.setAttribute("data-active-tab", source);
           var buttons = document.querySelectorAll(".mobile-result-tab");
           for (var i = 0; i < buttons.length; i++) {
@@ -949,26 +1471,36 @@
         function renderVisibleGroups() {
           var results = document.getElementById("results");
           var visible = _allResults.slice(0, _shownCount);
-          var showColumns = storiesInScope();
-          results.classList.toggle("two-column", showColumns);
+          var sources = selectedSources();
+          var showColumns = sources.length > 0;
+          results.classList.toggle("multi-column", showColumns);
           if (!showColumns) {
             results.removeAttribute("data-active-tab");
             hideMobileTabs();
             results.innerHTML = renderGroups(visible);
             return;
           }
-          var discourseGroups = [];
-          var storyGroups = [];
-          for (var i = 0; i < visible.length; i++) {
-            if (visible[i].source === "stories") storyGroups.push(visible[i]);
-            else discourseGroups.push(visible[i]);
+          var groupsBySource = Object.create(null);
+          for (var sourceIndex = 0; sourceIndex < sources.length; sourceIndex++) {
+            groupsBySource[sources[sourceIndex]] = [];
           }
-          var activeTab = chooseMobileTab(discourseGroups, storyGroups);
+          for (var i = 0; i < visible.length; i++) {
+            if (groupsBySource[visible[i].source]) {
+              groupsBySource[visible[i].source].push(visible[i]);
+            }
+          }
+          var activeTab = chooseMobileTab(groupsBySource);
           results.setAttribute("data-active-tab", activeTab);
           renderMobileTabs(activeTab);
-          results.innerHTML =
-            renderColumn("Discourses", "discourses", discourseGroups) +
-            renderColumn("Baba stories", "stories", storyGroups);
+          results.innerHTML = sources
+            .map(function (source) {
+              return renderColumn(
+                SOURCE_DEFINITIONS[source].label,
+                source,
+                groupsBySource[source],
+              );
+            })
+            .join("");
         }
 
         function updateShowMore() {
@@ -995,14 +1527,22 @@
         }
 
         function updateStatus() {
-          var totalCount = 0;
-          for (var i = 0; i < _allResults.length; i++)
-            totalCount += _allResults[i].count;
+          var status = document.getElementById("status");
           var showing =
             _shownCount < _allResults.length
               ? "Showing " + _shownCount + " of " + _allResults.length
               : String(_allResults.length);
-          document.getElementById("status").textContent =
+          if (_isFuzzySearch) {
+            status.textContent =
+              showing +
+              " approximate document" +
+              (_allResults.length !== 1 ? "s" : "");
+            return;
+          }
+          var totalCount = 0;
+          for (var i = 0; i < _allResults.length; i++)
+            totalCount += _allResults[i].count;
+          status.textContent =
             showing +
             " document" +
             (_allResults.length !== 1 ? "s" : "") +
@@ -1012,23 +1552,45 @@
             (totalCount !== 1 ? "s" : "");
         }
 
-        function renderResults(allGroups) {
+        function updateSearchModeNote(isFuzzy, query) {
+          var note = document.getElementById("search-mode-note");
+          if (!isFuzzy) {
+            note.hidden = true;
+            note.textContent = "";
+            return;
+          }
+          note.hidden = false;
+          note.textContent =
+            'No exact matches for "' +
+            query +
+            '". Showing the closest matches instead.';
+        }
+
+        function renderResults(allGroups, options) {
           var re = document.getElementById("results"),
             st = document.getElementById("status"),
             hero = document.getElementById("hero");
+          _isFuzzySearch = !!(options && options.fuzzy);
           if (!allGroups.length) {
             _allResults = [];
             _shownCount = 0;
-            re.classList.remove("two-column");
+            re.classList.remove("multi-column");
             re.removeAttribute("data-active-tab");
             hideMobileTabs();
             re.innerHTML = "";
-            st.textContent = "No results found.";
+            updateSearchModeNote(false);
+            st.textContent = _isFuzzySearch
+              ? "No exact or close matches found."
+              : "No results found.";
             hero.classList.add("has-results");
             return;
           }
           _allResults = allGroups;
           _shownCount = Math.min(PAGE_SIZE, allGroups.length);
+          updateSearchModeNote(
+            _isFuzzySearch,
+            options && options.query ? options.query : "",
+          );
           renderVisibleGroups();
           updateShowMore();
           updateStatus();
@@ -1040,16 +1602,18 @@
           var q = document.getElementById("search-input").value;
           if (normalize(q.trim()).length < MIN_QUERY) {
             document.getElementById("results").innerHTML = "";
-            document.getElementById("results").classList.remove("two-column");
+            document.getElementById("results").classList.remove("multi-column");
             document.getElementById("results").removeAttribute("data-active-tab");
             hideMobileTabs();
             document.getElementById("status").textContent = "";
+            _isFuzzySearch = false;
+            updateSearchModeNote(false);
             document.getElementById("hero").classList.remove("has-results");
             return;
           }
           timer = setTimeout(function () {
-            var all = search(q);
-            renderResults(all);
+            var result = searchWithFallback(q);
+            renderResults(result.groups, result);
           }, DEBOUNCE_MS);
         }
         function pickRandom() {
@@ -1143,7 +1707,7 @@
           });
 
         window.addEventListener("load", function () {
-          initCorpusToggle();
+          initCorpusPicker();
           buildFilterBar();
           var inp = document.getElementById("search-input");
           inp.addEventListener("input", onInput);

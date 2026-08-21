@@ -3,8 +3,8 @@
  *
  * Each key is a filter label shown as a button in the search UI.
  * Each value is an array of discourse filenames (basename only, no path).
- * Baba stories are controlled separately by the "Include Baba stories"
- * checkbox in search.html. Custom sets continue to apply to discourses only.
+ * Optional source collections are controlled separately by the source picker
+ * in search.html. Custom sets continue to apply to discourses only.
  *
  * Rules:
  *   - The first entry is always shown selected by default (usually "All").
@@ -29,7 +29,7 @@ var filterSets = {
 
   // ── Add your custom sets below ──────────────────────────────────────
   //
-  "Dharmashastra Friendly": [
+  "Spiritual Discourses Only": [
     "How_Should_Human_Beings_Live_In_This_World.html",
     "What_Is_the_Aim_of_Humanity.html",
     "Intuitional_Practice_and_Its_Necessity.html",
