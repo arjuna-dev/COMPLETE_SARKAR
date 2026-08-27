@@ -18,6 +18,8 @@
         --border: #3e3228;
         --hover: #352f28;
         --header-bg: #28231e;
+        --progress: #896b52;
+        --progress-track: #3a322c;
       }
       :root[data-theme="light"] {
         --bg: #f7f4f0;
@@ -30,6 +32,8 @@
         --border: #d5cfc6;
         --hover: #e4dfd7;
         --header-bg: #e8e3dc;
+        --progress: #a8896d;
+        --progress-track: #ddd5cc;
       }
 
       *,
@@ -200,11 +204,12 @@
         background: var(--bg);
       }
 
-      /* Thin top bar — just burger + theme toggle */
+      /* Thin top bar with contextual reader controls */
       #topbar {
         display: flex;
         align-items: center;
         height: 38px;
+        position: relative;
         padding: 0 10px;
         background: var(--header-bg);
         border-bottom: 1px solid var(--border);
@@ -237,6 +242,26 @@
         font-size: 14pt;
       }
 
+      #reading-progress-toggle {
+        display: none;
+        width: 30px;
+        height: 30px;
+        padding: 5px;
+      }
+      #reading-progress-toggle.is-visible {
+        display: flex;
+      }
+      #reading-progress-toggle.is-enabled {
+        color: var(--progress);
+      }
+      #reading-progress-toggle.is-enabled:hover {
+        color: var(--progress);
+      }
+      #reading-progress-toggle svg {
+        width: 18px;
+        height: 18px;
+      }
+
       .bar-btn:disabled,
       .bar-btn:disabled:hover {
         color: var(--text-dim);
@@ -245,42 +270,32 @@
         opacity: 0.35;
       }
 
-      /* Reader progress, shown for discourse documents only */
+      /* Reader progress sits on the lower edge of the top bar */
       #reading-progress {
         display: none;
-        flex-shrink: 0;
-        height: 23px;
-        padding: 3px 12px 4px;
-        background: var(--header-bg);
-        border-bottom: 1px solid var(--border);
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 2;
+        width: 100%;
+        height: 2px;
+        pointer-events: none;
+        background: var(--progress-track);
       }
       #reading-progress.is-visible {
         display: block;
       }
-      .reading-progress-meta {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 10px;
-        color: var(--text-dim);
-        font-size: 7.5pt;
-        line-height: 10px;
-        letter-spacing: 0.02em;
-      }
       .reading-progress-track {
-        position: relative;
-        height: 3px;
-        margin-top: 2px;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
-        border-radius: 999px;
-        background: var(--border);
+        background: var(--progress-track);
       }
       #reading-progress-fill {
         width: 0;
         height: 100%;
-        border-radius: inherit;
-        background: linear-gradient(90deg, var(--accent), #f2b15c);
-        box-shadow: 0 0 8px var(--accent);
+        background: var(--progress);
         transition: width 0.16s ease-out;
       }
 
@@ -877,6 +892,31 @@
             </button>
           </div>
 
+          <!-- Reading progress toggle, visible for discourse documents -->
+          <button
+            class="bar-btn"
+            id="reading-progress-toggle"
+            type="button"
+            title="Hide reading progress"
+            aria-label="Hide reading progress"
+            aria-pressed="true"
+            aria-hidden="true"
+          >
+            <svg
+              viewBox="0 0 18 18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.35"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="2.25" y="3.25" width="13.5" height="11.5" rx="1.75" />
+              <line x1="5" y1="7" x2="13" y2="7" />
+              <line x1="5" y1="10" x2="10.5" y2="10" />
+            </svg>
+          </button>
+
           <div id="topbar-spacer"></div>
 
           <!-- Random discourse shortcut -->
@@ -1031,27 +1071,22 @@
               />
             </svg>
           </button>
+          <div id="reading-progress" aria-hidden="true">
+            <div
+              class="reading-progress-track"
+              id="reading-progress-bar"
+              role="progressbar"
+              aria-label="Reading progress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+              aria-valuetext="0 percent read"
+            >
+              <div id="reading-progress-fill"></div>
+            </div>
+          </div>
         </div>
         <!-- /topbar -->
-
-        <div id="reading-progress" aria-hidden="true">
-          <div class="reading-progress-meta">
-            <span id="reading-progress-length">Discourse length</span>
-            <span id="reading-progress-value">0%</span>
-          </div>
-          <div
-            class="reading-progress-track"
-            id="reading-progress-bar"
-            role="progressbar"
-            aria-label="Reading progress"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow="0"
-            aria-valuetext="0 percent read"
-          >
-            <div id="reading-progress-fill"></div>
-          </div>
-        </div>
 
         <iframe
           id="client-frame"
@@ -1199,6 +1234,7 @@
 
         // ── Mobile discourse reader controls ────────────────────────
         var READER_FONT_SCALE_KEY = "ee7-reader-font-scale";
+        var READER_PROGRESS_KEY = "ee7-reading-progress-enabled";
         var READER_FONT_MIN = 0.85;
         var READER_FONT_MAX = 1.4;
         var READER_FONT_STEP = 0.1;
@@ -1210,13 +1246,10 @@
         var readerFontIncrease = document.getElementById(
           "reader-font-increase",
         );
+        var readingProgressToggle = document.getElementById(
+          "reading-progress-toggle",
+        );
         var readingProgress = document.getElementById("reading-progress");
-        var readingProgressLength = document.getElementById(
-          "reading-progress-length",
-        );
-        var readingProgressValue = document.getElementById(
-          "reading-progress-value",
-        );
         var readingProgressBar = document.getElementById(
           "reading-progress-bar",
         );
@@ -1231,6 +1264,12 @@
         var readerTypographyDoc = null;
         var readerBaseTypography = null;
         var readerTypographyMobileMode = null;
+        var readerProgressEnabled = true;
+
+        try {
+          readerProgressEnabled =
+            localStorage.getItem(READER_PROGRESS_KEY) !== "false";
+        } catch (e) {}
 
         function clampReaderFontScale(value) {
           if (typeof value !== "number" || !isFinite(value)) return 1;
@@ -1261,37 +1300,53 @@
           );
         }
 
+        function updateReaderProgressToggle(doc) {
+          var visible = isDiscourseDocument(doc);
+          var label = readerProgressEnabled
+            ? "Hide reading progress"
+            : "Show reading progress";
+          readingProgressToggle.classList.toggle("is-visible", visible);
+          readingProgressToggle.classList.toggle(
+            "is-enabled",
+            visible && readerProgressEnabled,
+          );
+          readingProgressToggle.setAttribute(
+            "aria-hidden",
+            visible ? "false" : "true",
+          );
+          readingProgressToggle.setAttribute(
+            "aria-pressed",
+            readerProgressEnabled ? "true" : "false",
+          );
+          readingProgressToggle.setAttribute("aria-label", label);
+          readingProgressToggle.setAttribute("title", label);
+        }
+
+        function updateReaderProgressVisibility(doc) {
+          var visible = isDiscourseDocument(doc) && readerProgressEnabled;
+          readingProgress.classList.toggle("is-visible", visible);
+          readingProgress.setAttribute("aria-hidden", visible ? "false" : "true");
+        }
+
+        function setReaderProgressEnabled(enabled) {
+          readerProgressEnabled = !!enabled;
+          try {
+            localStorage.setItem(
+              READER_PROGRESS_KEY,
+              readerProgressEnabled ? "true" : "false",
+            );
+          } catch (e) {}
+          var doc = activeReaderDocument();
+          updateReaderProgressToggle(doc);
+          updateReaderProgressVisibility(doc);
+        }
+
         function readerUsesMobileViewport(doc) {
           if (!doc || !doc.documentElement) return true;
           var win = doc.defaultView || frame.contentWindow;
           var width =
             (win && win.innerWidth) || doc.documentElement.clientWidth || 0;
           return width <= READER_MOBILE_BREAKPOINT;
-        }
-
-        function formatReaderWordCount(count) {
-          try {
-            return new Intl.NumberFormat().format(count);
-          } catch (e) {
-            return String(count);
-          }
-        }
-
-        function countReaderWords(doc) {
-          if (!doc || !doc.body) return 0;
-          var copy = doc.body.cloneNode(true);
-          var excluded = copy.querySelectorAll(
-            ".discourse_box, .discourse_references, .discourse_filename, .discourse_online_info, script, style, noscript",
-          );
-          for (var i = 0; i < excluded.length; i++) {
-            if (excluded[i].parentNode) {
-              excluded[i].parentNode.removeChild(excluded[i]);
-            }
-          }
-          var text = (copy.textContent || "").replace(/\s+/g, " ").trim();
-          if (!text) return 0;
-          var words = text.match(/\S+/g);
-          return words ? words.length : 0;
         }
 
         function captureReaderTypography(doc) {
@@ -1361,14 +1416,11 @@
           }
           var metrics = readerProgressMetrics(readerProgressDoc);
           var percent = metrics.percent;
-          readingProgressValue.textContent = percent + "%";
           readingProgressFill.style.width = percent + "%";
           readingProgressBar.setAttribute("aria-valuenow", String(percent));
           readingProgressBar.setAttribute(
             "aria-valuetext",
-            percent +
-              " percent read, " +
-              readingProgressLength.textContent,
+            percent + " percent read",
           );
         }
 
@@ -1404,8 +1456,6 @@
           readerTypographyMobileMode = null;
           readingProgress.classList.remove("is-visible");
           readingProgress.setAttribute("aria-hidden", "true");
-          readingProgressLength.textContent = "Discourse length";
-          readingProgressValue.textContent = "0%";
           readingProgressFill.style.width = "0%";
           readingProgressBar.setAttribute("aria-valuenow", "0");
           readingProgressBar.setAttribute(
@@ -1436,11 +1486,7 @@
           };
           captureReaderTypography(doc);
           applyReaderFontScale(doc);
-          var wordCount = countReaderWords(doc);
-          readingProgressLength.textContent =
-            formatReaderWordCount(wordCount) + " words";
-          readingProgress.classList.add("is-visible");
-          readingProgress.setAttribute("aria-hidden", "false");
+          updateReaderProgressVisibility(doc);
           updateReaderControls(doc);
           readerProgressWindow.addEventListener(
             "scroll",
@@ -1456,6 +1502,7 @@
 
         function syncReaderUi() {
           var doc = activeReaderDocument();
+          updateReaderProgressToggle(doc);
           if (!isDiscourseDocument(doc)) {
             updateReaderControls(doc);
             unbindReaderProgress();
@@ -1497,6 +1544,11 @@
         });
         readerFontIncrease.addEventListener("click", function () {
           changeReaderFontScale(READER_FONT_STEP);
+        });
+        readingProgressToggle.addEventListener("click", function () {
+          var doc = activeReaderDocument();
+          if (!isDiscourseDocument(doc)) return;
+          setReaderProgressEnabled(!readerProgressEnabled);
         });
 
         // ── Shareable iframe routes ───────────────────────────────────
