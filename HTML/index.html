@@ -251,15 +251,20 @@
       #reading-progress-toggle.is-visible {
         display: flex;
       }
-      #reading-progress-toggle.is-enabled {
-        color: var(--progress);
-      }
-      #reading-progress-toggle.is-enabled:hover {
-        color: var(--progress);
-      }
       #reading-progress-toggle svg {
         width: 18px;
         height: 18px;
+      }
+      #reading-progress-toggle .reading-progress-icon--off {
+        display: none;
+      }
+      #reading-progress-toggle:not(.is-enabled)
+        .reading-progress-icon--on {
+        display: none;
+      }
+      #reading-progress-toggle:not(.is-enabled)
+        .reading-progress-icon--off {
+        display: block;
       }
 
       .bar-btn:disabled,
@@ -902,18 +907,35 @@
             aria-pressed="true"
             aria-hidden="true"
           >
+            <!-- Eye icon while reading progress is enabled -->
             <svg
+              class="reading-progress-icon--on"
               viewBox="0 0 18 18"
               fill="none"
               stroke="currentColor"
-              stroke-width="1.35"
+              stroke-width="1.5"
               stroke-linecap="round"
               stroke-linejoin="round"
               aria-hidden="true"
             >
-              <rect x="2.25" y="3.25" width="13.5" height="11.5" rx="1.75" />
-              <line x1="5" y1="7" x2="13" y2="7" />
-              <line x1="5" y1="10" x2="10.5" y2="10" />
+              <path d="M1.5 9s2.35-4 6.5-4 6.5 4 6.5 4-2.35 4-6.5 4-6.5-4-6.5-4Z" />
+              <circle cx="8" cy="9" r="1.7" />
+            </svg>
+            <!-- Eye-off icon while reading progress is disabled -->
+            <svg
+              class="reading-progress-icon--off"
+              viewBox="0 0 18 18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M1.5 9s2.35-4 6.5-4c1.1 0 2.08.25 2.95.62" />
+              <path d="M13.05 6.25C14.3 7.1 15 9 15 9s-2.35 4-6.5 4c-1.1 0-2.08-.25-2.95-.62" />
+              <path d="M6.55 8.2a1.7 1.7 0 0 0 2.35 2.35" />
+              <line x1="2.5" y1="2.5" x2="15.5" y2="15.5" />
             </svg>
           </button>
 
