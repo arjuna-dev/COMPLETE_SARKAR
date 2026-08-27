@@ -216,6 +216,74 @@
         flex: 1;
       }
 
+      /* Mobile reading controls */
+      #reader-controls {
+        display: none;
+        align-items: center;
+        gap: 1px;
+        margin-left: 5px;
+        padding-left: 6px;
+        border-left: 1px solid var(--border);
+      }
+      .bar-btn.reader-size-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        font-family: Tahoma, sans-serif;
+        font-size: 15pt;
+        font-weight: 500;
+      }
+      #reader-font-decrease {
+        font-size: 14pt;
+      }
+
+      .bar-btn:disabled,
+      .bar-btn:disabled:hover {
+        color: var(--text-dim);
+        background: none;
+        cursor: default;
+        opacity: 0.35;
+      }
+
+      /* Reader progress, shown for discourse documents only */
+      #reading-progress {
+        display: none;
+        flex-shrink: 0;
+        height: 23px;
+        padding: 3px 12px 4px;
+        background: var(--header-bg);
+        border-bottom: 1px solid var(--border);
+      }
+      #reading-progress.is-visible {
+        display: block;
+      }
+      .reading-progress-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 10px;
+        color: var(--text-dim);
+        font-size: 7.5pt;
+        line-height: 10px;
+        letter-spacing: 0.02em;
+      }
+      .reading-progress-track {
+        position: relative;
+        height: 3px;
+        margin-top: 2px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--border);
+      }
+      #reading-progress-fill {
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), #f2b15c);
+        box-shadow: 0 0 8px var(--accent);
+        transition: width 0.16s ease-out;
+      }
+
       .bar-btn {
         background: none;
         border: none;
@@ -264,6 +332,10 @@
       }
 
       @media (max-width: 700px) {
+        #reader-controls.is-visible {
+          display: flex;
+        }
+
         .bar-btn-label {
           display: none;
         }
@@ -329,6 +401,12 @@
         /* Main fills full width — sidebar floats above */
         #main {
           width: 100%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #reading-progress-fill {
+          transition: none;
         }
       }
     </style>
@@ -777,6 +855,28 @@
             </svg>
           </button>
 
+          <!-- Text size controls, visible while reading a discourse on mobile -->
+          <div id="reader-controls" role="group" aria-label="Text size">
+            <button
+              class="bar-btn reader-size-btn"
+              id="reader-font-decrease"
+              type="button"
+              title="Make text smaller"
+              aria-label="Make text smaller"
+            >
+              <span aria-hidden="true">-</span>
+            </button>
+            <button
+              class="bar-btn reader-size-btn"
+              id="reader-font-increase"
+              type="button"
+              title="Make text larger"
+              aria-label="Make text larger"
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+          </div>
+
           <div id="topbar-spacer"></div>
 
           <!-- Random discourse shortcut -->
@@ -934,6 +1034,25 @@
         </div>
         <!-- /topbar -->
 
+        <div id="reading-progress" aria-hidden="true">
+          <div class="reading-progress-meta">
+            <span id="reading-progress-length">Discourse length</span>
+            <span id="reading-progress-value">0%</span>
+          </div>
+          <div
+            class="reading-progress-track"
+            id="reading-progress-bar"
+            role="progressbar"
+            aria-label="Reading progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            aria-valuetext="0 percent read"
+          >
+            <div id="reading-progress-fill"></div>
+          </div>
+        </div>
+
         <iframe
           id="client-frame"
           name="Client"
@@ -1076,6 +1195,308 @@
             title: this.getAttribute("data-ee7-favorite-title"),
           });
           window.EE7Favorites.updateButton(this);
+        });
+
+        // ── Mobile discourse reader controls ────────────────────────
+        var READER_FONT_SCALE_KEY = "ee7-reader-font-scale";
+        var READER_FONT_MIN = 0.85;
+        var READER_FONT_MAX = 1.4;
+        var READER_FONT_STEP = 0.1;
+        var READER_MOBILE_BREAKPOINT = 700;
+        var readerControls = document.getElementById("reader-controls");
+        var readerFontDecrease = document.getElementById(
+          "reader-font-decrease",
+        );
+        var readerFontIncrease = document.getElementById(
+          "reader-font-increase",
+        );
+        var readingProgress = document.getElementById("reading-progress");
+        var readingProgressLength = document.getElementById(
+          "reading-progress-length",
+        );
+        var readingProgressValue = document.getElementById(
+          "reading-progress-value",
+        );
+        var readingProgressBar = document.getElementById(
+          "reading-progress-bar",
+        );
+        var readingProgressFill = document.getElementById(
+          "reading-progress-fill",
+        );
+        var readerFontScale = 1;
+        var readerProgressDoc = null;
+        var readerProgressWindow = null;
+        var readerProgressScrollHandler = null;
+        var readerProgressResizeHandler = null;
+        var readerTypographyDoc = null;
+        var readerBaseTypography = null;
+        var readerTypographyMobileMode = null;
+
+        function clampReaderFontScale(value) {
+          if (typeof value !== "number" || !isFinite(value)) return 1;
+          return Math.round(
+            Math.min(READER_FONT_MAX, Math.max(READER_FONT_MIN, value)) * 100,
+          ) / 100;
+        }
+
+        try {
+          readerFontScale = clampReaderFontScale(
+            parseFloat(localStorage.getItem(READER_FONT_SCALE_KEY)),
+          );
+        } catch (e) {}
+
+        function activeReaderDocument() {
+          try {
+            return frame.contentWindow && frame.contentWindow.document;
+          } catch (e) {
+            return null;
+          }
+        }
+
+        function isDiscourseDocument(doc) {
+          return !!(
+            doc &&
+            doc.location &&
+            (doc.location.pathname || "").indexOf("/Discourses/") !== -1
+          );
+        }
+
+        function readerUsesMobileViewport(doc) {
+          if (!doc || !doc.documentElement) return true;
+          var win = doc.defaultView || frame.contentWindow;
+          var width =
+            (win && win.innerWidth) || doc.documentElement.clientWidth || 0;
+          return width <= READER_MOBILE_BREAKPOINT;
+        }
+
+        function formatReaderWordCount(count) {
+          try {
+            return new Intl.NumberFormat().format(count);
+          } catch (e) {
+            return String(count);
+          }
+        }
+
+        function countReaderWords(doc) {
+          if (!doc || !doc.body) return 0;
+          var copy = doc.body.cloneNode(true);
+          var excluded = copy.querySelectorAll(
+            ".discourse_box, .discourse_references, .discourse_filename, .discourse_online_info, script, style, noscript",
+          );
+          for (var i = 0; i < excluded.length; i++) {
+            if (excluded[i].parentNode) {
+              excluded[i].parentNode.removeChild(excluded[i]);
+            }
+          }
+          var text = (copy.textContent || "").replace(/\s+/g, " ").trim();
+          if (!text) return 0;
+          var words = text.match(/\S+/g);
+          return words ? words.length : 0;
+        }
+
+        function captureReaderTypography(doc) {
+          if (!doc || !doc.body) return;
+          var win = doc.defaultView || frame.contentWindow;
+          var styles = win && win.getComputedStyle
+            ? win.getComputedStyle(doc.body)
+            : null;
+          var fontSize = styles ? parseFloat(styles.fontSize) : 0;
+          var lineHeight = styles ? parseFloat(styles.lineHeight) : 0;
+          if (!fontSize || !isFinite(fontSize)) fontSize = 13.333;
+          if (!lineHeight || !isFinite(lineHeight)) lineHeight = fontSize * 1.4;
+          readerTypographyDoc = doc;
+          readerTypographyMobileMode = readerUsesMobileViewport(doc);
+          readerBaseTypography = {
+            fontSize: fontSize,
+            lineHeight: lineHeight,
+          };
+        }
+
+        function applyReaderFontScale(doc) {
+          if (!isDiscourseDocument(doc) || !doc.body) return;
+          if (readerTypographyDoc !== doc || !readerBaseTypography) {
+            captureReaderTypography(doc);
+          }
+          doc.body.style.fontSize =
+            readerBaseTypography.fontSize * readerFontScale + "px";
+          doc.body.style.lineHeight =
+            readerBaseTypography.lineHeight * readerFontScale + "px";
+        }
+
+        function readerProgressMetrics(doc) {
+          if (!doc || !doc.documentElement) {
+            return { fraction: 0, percent: 0, maxScroll: 0 };
+          }
+          var win = doc.defaultView || frame.contentWindow;
+          var root = doc.documentElement;
+          var body = doc.body;
+          var scrollTop = Math.max(
+            0,
+            (win && win.pageYOffset) || 0,
+            root.scrollTop || 0,
+            (body && body.scrollTop) || 0,
+          );
+          var viewportHeight =
+            (win && win.innerHeight) || root.clientHeight || 0;
+          var scrollHeight = Math.max(
+            root.scrollHeight || 0,
+            (body && body.scrollHeight) || 0,
+          );
+          var maxScroll = Math.max(0, scrollHeight - viewportHeight);
+          var fraction = maxScroll
+            ? Math.min(1, Math.max(0, scrollTop / maxScroll))
+            : scrollHeight
+              ? 1
+              : 0;
+          return {
+            fraction: fraction,
+            percent: Math.round(fraction * 100),
+            maxScroll: maxScroll,
+          };
+        }
+
+        function updateReaderProgress() {
+          if (!readerProgressDoc || !isDiscourseDocument(readerProgressDoc)) {
+            return;
+          }
+          var metrics = readerProgressMetrics(readerProgressDoc);
+          var percent = metrics.percent;
+          readingProgressValue.textContent = percent + "%";
+          readingProgressFill.style.width = percent + "%";
+          readingProgressBar.setAttribute("aria-valuenow", String(percent));
+          readingProgressBar.setAttribute(
+            "aria-valuetext",
+            percent +
+              " percent read, " +
+              readingProgressLength.textContent,
+          );
+        }
+
+        function updateReaderControls(doc) {
+          var visible =
+            isDiscourseDocument(doc) &&
+            window.innerWidth <= READER_MOBILE_BREAKPOINT;
+          readerControls.classList.toggle("is-visible", visible);
+          readerControls.setAttribute("aria-hidden", visible ? "false" : "true");
+          readerFontDecrease.disabled = readerFontScale <= READER_FONT_MIN;
+          readerFontIncrease.disabled = readerFontScale >= READER_FONT_MAX;
+        }
+
+        function unbindReaderProgress() {
+          if (readerProgressWindow && readerProgressScrollHandler) {
+            readerProgressWindow.removeEventListener(
+              "scroll",
+              readerProgressScrollHandler,
+            );
+          }
+          if (readerProgressWindow && readerProgressResizeHandler) {
+            readerProgressWindow.removeEventListener(
+              "resize",
+              readerProgressResizeHandler,
+            );
+          }
+          readerProgressDoc = null;
+          readerProgressWindow = null;
+          readerProgressScrollHandler = null;
+          readerProgressResizeHandler = null;
+          readerTypographyDoc = null;
+          readerBaseTypography = null;
+          readerTypographyMobileMode = null;
+          readingProgress.classList.remove("is-visible");
+          readingProgress.setAttribute("aria-hidden", "true");
+          readingProgressLength.textContent = "Discourse length";
+          readingProgressValue.textContent = "0%";
+          readingProgressFill.style.width = "0%";
+          readingProgressBar.setAttribute("aria-valuenow", "0");
+          readingProgressBar.setAttribute(
+            "aria-valuetext",
+            "0 percent read",
+          );
+        }
+
+        function bindReaderProgress(doc) {
+          unbindReaderProgress();
+          if (!isDiscourseDocument(doc) || !doc.body) {
+            updateReaderControls(doc);
+            return;
+          }
+
+          readerProgressDoc = doc;
+          readerProgressWindow = doc.defaultView || frame.contentWindow;
+          readerProgressScrollHandler = updateReaderProgress;
+          readerProgressResizeHandler = function () {
+            var mobileMode = readerUsesMobileViewport(doc);
+            if (readerTypographyMobileMode !== mobileMode) {
+              doc.body.style.fontSize = "";
+              doc.body.style.lineHeight = "";
+              captureReaderTypography(doc);
+            }
+            applyReaderFontScale(doc);
+            updateReaderProgress();
+          };
+          captureReaderTypography(doc);
+          applyReaderFontScale(doc);
+          var wordCount = countReaderWords(doc);
+          readingProgressLength.textContent =
+            formatReaderWordCount(wordCount) + " words";
+          readingProgress.classList.add("is-visible");
+          readingProgress.setAttribute("aria-hidden", "false");
+          updateReaderControls(doc);
+          readerProgressWindow.addEventListener(
+            "scroll",
+            readerProgressScrollHandler,
+            { passive: true },
+          );
+          readerProgressWindow.addEventListener(
+            "resize",
+            readerProgressResizeHandler,
+          );
+          updateReaderProgress();
+        }
+
+        function syncReaderUi() {
+          var doc = activeReaderDocument();
+          if (!isDiscourseDocument(doc)) {
+            updateReaderControls(doc);
+            unbindReaderProgress();
+            return;
+          }
+          updateReaderControls(doc);
+          if (readerProgressDoc !== doc) {
+            bindReaderProgress(doc);
+          } else {
+            applyReaderFontScale(doc);
+            updateReaderProgress();
+          }
+        }
+
+        function changeReaderFontScale(delta) {
+          var doc = activeReaderDocument();
+          if (!isDiscourseDocument(doc)) return;
+          var before = readerProgressMetrics(doc);
+          var next = clampReaderFontScale(readerFontScale + delta);
+          if (next === readerFontScale) return;
+          readerFontScale = next;
+          try {
+            localStorage.setItem(READER_FONT_SCALE_KEY, String(readerFontScale));
+          } catch (e) {}
+          applyReaderFontScale(doc);
+          updateReaderControls(doc);
+          window.requestAnimationFrame(function () {
+            var after = readerProgressMetrics(doc);
+            var win = doc.defaultView || frame.contentWindow;
+            if (win && after.maxScroll) {
+              win.scrollTo(0, before.fraction * after.maxScroll);
+            }
+            updateReaderProgress();
+          });
+        }
+
+        readerFontDecrease.addEventListener("click", function () {
+          changeReaderFontScale(-READER_FONT_STEP);
+        });
+        readerFontIncrease.addEventListener("click", function () {
+          changeReaderFontScale(READER_FONT_STEP);
         });
 
         // ── Shareable iframe routes ───────────────────────────────────
@@ -1248,8 +1669,10 @@
             );
           } catch (e) {}
           syncCurrentFavoriteButton();
+          syncReaderUi();
         });
         syncCurrentFavoriteButton();
+        syncReaderUi();
 
         // ── Sidebar ─────────────────────────────────────────────────
         var MOBILE_BP = 700;
@@ -1296,6 +1719,7 @@
           if (!isMobile()) {
             closeMobileDrawer(); // strip mobile classes
           }
+          syncReaderUi();
         });
 
         // ── Accordion ─────────────────────────────────────────────────
