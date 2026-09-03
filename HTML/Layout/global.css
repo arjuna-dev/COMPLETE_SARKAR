@@ -1,10 +1,10 @@
 
 /* ── Theme tokens ─────────────────────────────────────────────
    Applied by theme.js setting data-theme on <html>.
-   Default (no attribute) = dark.
+   Default (no attribute) = dusk.
 ──────────────────────────────────────────────────────────── */
 :root,
-html[data-theme="dark"] {
+html[data-theme="dusk"] {
   --bg:       #231e18;
   --surface:  #352f28;
   --text:     #ddd5c8;
@@ -13,6 +13,16 @@ html[data-theme="dark"] {
   --border:   #3e3228;
   --link:     #c89060;
   --link-vis: #a07040;
+}
+html[data-theme="dark"] {
+  --bg:       #17191b;
+  --surface:  #222629;
+  --text:     #f2f3f0;
+  --text-dim: #aeb5b8;
+  --accent:   #ef8b32;
+  --border:   #343a3d;
+  --link:     #f0ad72;
+  --link-vis: #d99055;
 }
 html[data-theme="light"] {
   --bg:       #f7f4f0;
@@ -23,6 +33,16 @@ html[data-theme="light"] {
   --border:   #d5cfc6;
   --link:     #8b4a10;
   --link-vis: #6b3a0a;
+}
+html[data-theme="dawn"] {
+  --bg:       #d96720;
+  --surface:  #ed7d2c;
+  --text:     #fff4e5;
+  --text-dim: #ffe0be;
+  --accent:   #fff7e8;
+  --border:   rgba(82, 28, 6, 0.28);
+  --link:     #fff7e8;
+  --link-vis: #ffe0be;
 }
 
 body { background: var(--bg) !important; color: var(--text) !important; }

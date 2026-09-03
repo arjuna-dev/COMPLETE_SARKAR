@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dusk">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <style>
       /* ── Design tokens ──────────────────────────────────────────── */
-      :root[data-theme="dark"] {
+      :root[data-theme="dusk"] {
         --bg: #2e2a24;
         --surface: #352f28;
         --sidebar-bg: #28231e;
@@ -20,6 +20,20 @@
         --header-bg: #28231e;
         --progress: #896b52;
         --progress-track: #3a322c;
+      }
+      :root[data-theme="dark"] {
+        --bg: #17191b;
+        --surface: #222629;
+        --sidebar-bg: #121416;
+        --text: #f2f3f0;
+        --text-dim: #aeb5b8;
+        --accent: #ef8b32;
+        --accent-dim: rgba(239, 139, 50, 0.16);
+        --border: #343a3d;
+        --hover: #282d30;
+        --header-bg: #121416;
+        --progress: #c47c43;
+        --progress-track: #2a3033;
       }
       :root[data-theme="light"] {
         --bg: #f7f4f0;
@@ -34,6 +48,20 @@
         --header-bg: #e8e3dc;
         --progress: #a8896d;
         --progress-track: #ddd5cc;
+      }
+      :root[data-theme="dawn"] {
+        --bg: #d96720;
+        --surface: #ed7d2c;
+        --sidebar-bg: #b84f15;
+        --text: #fff4e5;
+        --text-dim: #ffe0be;
+        --accent: #fff7e8;
+        --accent-dim: rgba(255, 247, 232, 0.16);
+        --border: rgba(82, 28, 6, 0.28);
+        --hover: #e87525;
+        --header-bg: #b84f15;
+        --progress: #fff0d2;
+        --progress-track: rgba(82, 28, 6, 0.22);
       }
 
       *,
@@ -221,7 +249,7 @@
         flex: 1;
       }
 
-      /* Mobile reading controls */
+      /* Reader controls */
       #reader-controls {
         display: none;
         align-items: center;
@@ -229,6 +257,9 @@
         margin-left: 5px;
         padding-left: 6px;
         border-left: 1px solid var(--border);
+      }
+      #reader-controls.is-visible {
+        display: flex;
       }
       .bar-btn.reader-size-btn {
         width: 30px;
@@ -320,8 +351,13 @@
         line-height: 1;
       }
       .bar-btn:hover {
-        color: var(--accent);
-        background: var(--accent-dim);
+        color: var(--text-dim);
+        background: transparent;
+      }
+      .bar-btn:focus,
+      .bar-btn:active {
+        color: var(--text-dim);
+        background: transparent;
       }
       #reader-controls .bar-btn:hover,
       #reader-controls .bar-btn:focus,
@@ -360,16 +396,81 @@
         color: var(--accent);
       }
 
-      @media (max-width: 700px) {
-        #reader-controls.is-visible {
-          display: flex;
-        }
+      #reading-time {
+        align-items: center;
+        color: var(--text-dim);
+        display: none;
+        font-size: 8pt;
+        gap: 5px;
+        margin-left: 8px;
+        white-space: nowrap;
+      }
+      #reading-time.is-visible {
+        display: flex;
+      }
+      #reading-time svg {
+        flex-shrink: 0;
+        opacity: 0.85;
+      }
 
+      .nav-count {
+        color: var(--text-dim);
+        display: none;
+        font-size: 7.5pt;
+        margin-left: auto;
+      }
+      .nav-count.is-visible {
+        display: inline;
+      }
+
+      #toast-region {
+        bottom: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+        position: fixed;
+        right: 18px;
+        z-index: 100;
+      }
+      .ee7-toast {
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+        color: var(--text);
+        display: flex;
+        font-size: 9pt;
+        gap: 8px;
+        max-width: min(320px, calc(100vw - 36px));
+        opacity: 0;
+        padding: 10px 13px;
+        transform: translateY(8px);
+        transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+      }
+      .ee7-toast.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .ee7-toast-mark {
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      @media (max-width: 700px) {
         .bar-btn-label {
           display: none;
         }
         .bar-btn--labeled {
           padding: 6px;
+        }
+        #reading-time {
+          margin-left: 4px;
+        }
+        #toast-region {
+          bottom: 12px;
+          right: 12px;
         }
       }
 
@@ -528,6 +629,53 @@
                 d="M8 1.6l1.7 3.44 3.8.55-2.75 2.68.65 3.79L8 10.28 4.6 12.06l.65-3.79L2.5 5.59l3.8-.55L8 1.6z"
               />
             </svg>
+          </a>
+          <a
+            class="nav-link"
+            href="currently-reading.html"
+            target="Client"
+            onclick="setActive(this)"
+            style="display: flex; align-items: center; gap: 6px"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="flex-shrink: 0; opacity: 0.75"
+            >
+              <circle cx="8" cy="8" r="5.5" />
+              <path d="M8 4.5v3.8l2.3 1.4" />
+            </svg>
+            Currently reading
+            <span class="nav-count" id="currently-reading-count"></span>
+          </a>
+          <a
+            class="nav-link"
+            href="quotes.html"
+            target="Client"
+            onclick="setActive(this)"
+            style="display: flex; align-items: center; gap: 6px"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="flex-shrink: 0; opacity: 0.75"
+            >
+              <path d="M3 3.5h10v7H8l-3.2 2v-2H3z" />
+            </svg>
+            Quotes
+            <span class="nav-count" id="quotes-count"></span>
           </a>
 
           <!-- Ásanas accordion -->
@@ -884,7 +1032,7 @@
             </svg>
           </button>
 
-          <!-- Text size controls, visible while reading a discourse on mobile -->
+          <!-- Text size controls, visible while reading -->
           <div id="reader-controls" role="group" aria-label="Text size">
             <button
               class="bar-btn reader-size-btn"
@@ -904,6 +1052,24 @@
             >
               <span aria-hidden="true">+</span>
             </button>
+          </div>
+
+          <div id="reading-time" aria-live="polite">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.35"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="8" cy="8" r="5.5" />
+              <path d="M8 4.7v3.6l2.1 1.3" />
+            </svg>
+            <span id="reading-time-value"></span>
           </div>
 
           <!-- Reading progress toggle, visible for discourse documents -->
@@ -1000,13 +1166,13 @@
             </svg>
           </button>
 
-          <!-- Theme toggle -->
+          <!-- Theme cycle -->
           <button
             class="bar-btn"
             id="theme-btn"
             onclick="toggleTheme()"
-            title="Toggle light/dark"
-            aria-label="Toggle theme"
+            title="Change theme"
+            aria-label="Change theme"
           >
             <!-- Moon icon (shown in dark mode) -->
             <svg
@@ -1101,6 +1267,7 @@
                 stroke-linecap="round"
               />
             </svg>
+            <span class="bar-btn-label" id="theme-label">Dusk</span>
           </button>
           <div id="reading-progress" aria-hidden="true">
             <div
@@ -1131,32 +1298,97 @@
       <!-- /main -->
     </div>
     <!-- /shell -->
+    <div id="toast-region" aria-live="polite" aria-atomic="true"></div>
 
     <script src="search_index.js"></script>
     <script src="Layout/favorites.js"></script>
+    <script src="Layout/quotes.js"></script>
+    <script src="Layout/reading-state.js"></script>
     <script>
       (function () {
         "use strict";
 
         var THEME_KEY = "ee7-theme";
+        var THEME_VERSION_KEY = "ee7-theme-version";
+        var THEMES = ["light", "dusk", "dark", "dawn"];
+        var THEME_LABELS = {
+          light: "Light",
+          dusk: "Dusk",
+          dark: "Dark",
+          dawn: "Dawn",
+        };
+
+        function normalizeTheme(theme) {
+          return THEMES.indexOf(theme) === -1 ? "dusk" : theme;
+        }
+
+        function readSavedTheme() {
+          var theme = "dusk";
+          try {
+            theme = localStorage.getItem(THEME_KEY) || "dusk";
+            // Before the four-theme cycle, "dark" referred to the brown dusk
+            // palette. Migrate that one legacy value once.
+            if (!localStorage.getItem(THEME_VERSION_KEY) && theme === "dark") {
+              theme = "dusk";
+            }
+          } catch (e) {}
+          return normalizeTheme(theme);
+        }
+
+        function applyThemeToFrame(doc, theme) {
+          if (!doc || !doc.documentElement) return;
+          theme = normalizeTheme(theme);
+          doc.documentElement.setAttribute("data-theme", theme);
+          if (!doc.head) return;
+          var style = doc.getElementById("ee7-frame-theme-style");
+          if (!style) {
+            style = doc.createElement("style");
+            style.id = "ee7-frame-theme-style";
+            doc.head.appendChild(style);
+          }
+          style.textContent =
+            'html[data-theme="dusk"]{--bg:#2e2a24;--surface:#352f28;--text:#ddd5c8;--text-dim:#8c8078;--dim:#a09088;--accent:#e07820;--border:#4a3c30}' +
+            'html[data-theme="light"]{--bg:#f7f4f0;--surface:#fff;--text:#1a160e;--text-dim:#8f8478;--dim:#6a6050;--accent:#c06010;--border:#d5cfc6}' +
+            'html[data-theme="dark"]{--bg:#17191b;--surface:#222629;--text:#f2f3f0;--text-dim:#aeb5b8;--dim:#aeb5b8;--accent:#ef8b32;--border:#343a3d}' +
+            'html[data-theme="dawn"]{--bg:#d96720;--surface:#ed7d2c;--text:#fff4e5;--text-dim:#ffe0be;--dim:#ffe0be;--accent:#fff7e8;--border:rgba(82,28,6,.28)}' +
+            'html[data-theme] body{background:var(--bg)!important;color:var(--text)!important}' +
+            'html[data-theme] .source,html[data-theme] .discourse_info,html[data-theme] .disc_date_place{color:var(--text-dim)!important}' +
+            'html[data-theme] h2,html[data-theme] h3,html[data-theme] h4,html[data-theme] h5,html[data-theme] h6{color:var(--accent)}';
+        }
 
         // ── Theme ──────────────────────────────────────────────────────
         function applyTheme(theme) {
+          theme = normalizeTheme(theme);
           document.documentElement.setAttribute("data-theme", theme);
-          var dark = theme === "dark";
+          var dark = theme === "dark" || theme === "dusk";
           document.getElementById("icon-moon").style.display = dark
             ? ""
             : "none";
           document.getElementById("icon-sun").style.display = dark
             ? "none"
             : "";
+          var themeLabel = document.getElementById("theme-label");
+          if (themeLabel) themeLabel.textContent = THEME_LABELS[theme];
+          var themeButton = document.getElementById("theme-btn");
+          if (themeButton) {
+            var nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+            var nextLabel = THEME_LABELS[nextTheme];
+            themeButton.title =
+              THEME_LABELS[theme] + " theme. Switch to " + nextLabel + " theme";
+            themeButton.setAttribute(
+              "aria-label",
+              THEME_LABELS[theme] + " theme. Switch to " + nextLabel + " theme",
+            );
+          }
           try {
             localStorage.setItem(THEME_KEY, theme);
+            localStorage.setItem(THEME_VERSION_KEY, "2");
           } catch (e) {}
           // propagate to content iframe
           var f = document.getElementById("client-frame");
           if (f && f.contentWindow) {
             try {
+              applyThemeToFrame(f.contentDocument, theme);
               f.contentWindow.postMessage(
                 { type: "ee7-theme", theme: theme },
                 "*",
@@ -1166,22 +1398,58 @@
         }
 
         function toggleTheme() {
-          var cur = document.documentElement.getAttribute("data-theme");
-          applyTheme(cur === "dark" ? "light" : "dark");
+          var cur = normalizeTheme(
+            document.documentElement.getAttribute("data-theme"),
+          );
+          applyTheme(THEMES[(THEMES.indexOf(cur) + 1) % THEMES.length]);
         }
         window.toggleTheme = toggleTheme;
 
-        // restore saved theme (default: dark)
-        var saved = "dark";
-        try {
-          saved = localStorage.getItem(THEME_KEY) || "dark";
-        } catch (e) {}
-        applyTheme(saved);
+        // restore saved theme (default: dusk)
+        applyTheme(readSavedTheme());
 
         var frame = document.getElementById("client-frame");
         var currentFavoriteBtn = document.getElementById(
           "favorite-current-btn",
         );
+        var toastRegion = document.getElementById("toast-region");
+
+        function showToast(message) {
+          if (!toastRegion) return;
+          var toast = document.createElement("div");
+          toast.className = "ee7-toast";
+          toast.innerHTML =
+            '<span class="ee7-toast-mark" aria-hidden="true">✓</span><span>' +
+            String(message || "Saved") +
+            "</span>";
+          toastRegion.appendChild(toast);
+          window.requestAnimationFrame(function () {
+            toast.classList.add("is-visible");
+          });
+          window.setTimeout(function () {
+            toast.classList.remove("is-visible");
+            window.setTimeout(function () {
+              if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 190);
+          }, 2400);
+        }
+        window.EE7ShowToast = showToast;
+
+        function updateQuotesCount() {
+          var countNode = document.getElementById("quotes-count");
+          if (!countNode || !window.EE7Quotes) return;
+          var count = window.EE7Quotes.readQuotes().length;
+          countNode.textContent = count ? String(count) : "";
+          countNode.classList.toggle("is-visible", count > 0);
+        }
+
+        function updateCurrentlyReadingCount() {
+          var countNode = document.getElementById("currently-reading-count");
+          if (!countNode || !window.EE7ReadingState) return;
+          var count = window.EE7ReadingState.read().length;
+          countNode.textContent = count ? String(count) : "";
+          countNode.classList.toggle("is-visible", count > 0);
+        }
 
         function clearCurrentFavoriteButton() {
           if (!currentFavoriteBtn) return;
@@ -1200,7 +1468,7 @@
           if (path.indexOf("/Discourses/") !== -1) {
             return window.EE7Favorites.getDiscourseTitle(doc);
           }
-          var heading = doc.querySelector("body > h1");
+          var heading = doc.querySelector(".book_title, body > h1, body h1");
           if (heading && heading.textContent) {
             return heading.textContent.replace(/\s+/g, " ").trim();
           }
@@ -1250,6 +1518,21 @@
           window.EE7Favorites.updateButton(currentFavoriteBtn);
         }
 
+        function syncReaderQuotes(doc) {
+          if (!window.EE7Quotes) return;
+          if (!isReaderDocument(doc)) {
+            window.EE7Quotes.unbindReaderDocument();
+            return;
+          }
+          window.EE7Quotes.bindReaderDocument(doc, {
+            title: readerTitle(doc, doc.location.pathname || ""),
+            onSaved: function (quote, alreadySaved) {
+              updateQuotesCount();
+              showToast(alreadySaved ? "Quote already saved" : "Quote saved");
+            },
+          });
+        }
+
         currentFavoriteBtn.addEventListener("click", function (e) {
           e.preventDefault();
           e.stopPropagation();
@@ -1263,11 +1546,11 @@
           window.EE7Favorites.updateButton(this);
         });
 
-        // ── Mobile discourse reader controls ────────────────────────
+        // ── Reader controls ─────────────────────────────────────────
         var READER_FONT_SCALE_KEY = "ee7-reader-font-scale";
         var READER_PROGRESS_KEY = "ee7-reading-progress-enabled";
         var READER_FONT_MIN = 0.85;
-        var READER_FONT_MAX = 1.4;
+        var READER_FONT_MAX = 2.0;
         var READER_FONT_STEP = 0.1;
         var READER_MOBILE_BREAKPOINT = 700;
         var readerControls = document.getElementById("reader-controls");
@@ -1296,6 +1579,8 @@
         var readerBaseTypography = null;
         var readerTypographyMobileMode = null;
         var readerProgressEnabled = true;
+        var readingTime = document.getElementById("reading-time");
+        var readingTimeValue = document.getElementById("reading-time-value");
 
         try {
           readerProgressEnabled =
@@ -1329,6 +1614,38 @@
             doc.location &&
             (doc.location.pathname || "").indexOf("/Discourses/") !== -1
           );
+        }
+
+        function isReaderDocument(doc) {
+          if (!doc || !doc.location) return false;
+          var path = doc.location.pathname || "";
+          return (
+            path.indexOf("/Discourses/") !== -1 ||
+            path.indexOf("/Books/") !== -1 ||
+            path.indexOf("/Stories/") !== -1 ||
+            path.indexOf("/Other-Spiritual-Books/") !== -1 ||
+            path.indexOf("/Acharya-Philosophy/") !== -1
+          );
+        }
+
+        function updateReadingTime(doc) {
+          if (!readingTime || !readingTimeValue) return;
+          if (!isReaderDocument(doc) || !doc.body) {
+            readingTime.classList.remove("is-visible");
+            readingTimeValue.textContent = "";
+            return;
+          }
+          var text = (doc.body.innerText || doc.body.textContent || "")
+            .replace(/\s+/g, " ")
+            .trim();
+          var words = text ? text.split(" ").length : 0;
+          var minutes = Math.max(1, Math.ceil(words / 200));
+          readingTimeValue.textContent = minutes + " min read";
+          readingTime.setAttribute(
+            "aria-label",
+            "Estimated reading time: " + minutes + " minutes",
+          );
+          readingTime.classList.add("is-visible");
         }
 
         function updateReaderProgressToggle(doc) {
@@ -1399,7 +1716,7 @@
         }
 
         function applyReaderFontScale(doc) {
-          if (!isDiscourseDocument(doc) || !doc.body) return;
+          if (!isReaderDocument(doc) || !doc.body) return;
           if (readerTypographyDoc !== doc || !readerBaseTypography) {
             captureReaderTypography(doc);
           }
@@ -1455,10 +1772,95 @@
           );
         }
 
+        var discourseSaveTimer = null;
+        var pendingDiscourseSaveDoc = null;
+
+        function saveDiscoursePosition(doc) {
+          if (!window.EE7ReadingState || !isDiscourseDocument(doc) || !doc.body) {
+            return;
+          }
+          var win = doc.defaultView || frame.contentWindow;
+          var root = doc.documentElement;
+          var scrollTop = Math.max(
+            0,
+            (win && win.pageYOffset) || 0,
+            root.scrollTop || 0,
+            doc.body.scrollTop || 0,
+          );
+          var scrollHeight = Math.max(root.scrollHeight || 0, doc.body.scrollHeight || 0);
+          var viewportHeight = (win && win.innerHeight) || root.clientHeight || 0;
+          var maxScroll = Math.max(0, scrollHeight - viewportHeight);
+          var progress = maxScroll ? Math.min(1, scrollTop / maxScroll) : 0;
+          var href = window.EE7ReadingState.normalizeHref(doc.location.href);
+          if (!href) return;
+          window.EE7ReadingState.save({
+            href: href,
+            title: readerTitle(doc, doc.location.pathname || ""),
+            scrollTop: scrollTop,
+            scrollHeight: scrollHeight,
+            viewportHeight: viewportHeight,
+            progress: progress,
+          });
+          updateCurrentlyReadingCount();
+        }
+
+        function scheduleSaveDiscoursePosition(doc) {
+          pendingDiscourseSaveDoc = doc;
+          if (discourseSaveTimer) return;
+          discourseSaveTimer = window.setTimeout(function () {
+            discourseSaveTimer = null;
+            var pending = pendingDiscourseSaveDoc;
+            pendingDiscourseSaveDoc = null;
+            saveDiscoursePosition(pending);
+          }, 160);
+        }
+
+        function flushSaveDiscoursePosition(doc) {
+          if (discourseSaveTimer) {
+            window.clearTimeout(discourseSaveTimer);
+            discourseSaveTimer = null;
+          }
+          pendingDiscourseSaveDoc = null;
+          saveDiscoursePosition(doc || activeReaderDocument());
+        }
+
+        function restoreDiscoursePosition(doc) {
+          if (!window.EE7ReadingState || !isDiscourseDocument(doc) || !doc.body) {
+            return;
+          }
+          var href = window.EE7ReadingState.normalizeHref(doc.location.href);
+          var entry = window.EE7ReadingState.find(href);
+          if (!entry) {
+            saveDiscoursePosition(doc);
+            return;
+          }
+          var title = readerTitle(doc, doc.location.pathname || "");
+          if (doc.location.hash) {
+            if (window.EE7ReadingState.touch) {
+              window.EE7ReadingState.touch(href, title);
+              updateCurrentlyReadingCount();
+            }
+            return;
+          }
+          var win = doc.defaultView || frame.contentWindow;
+          var restore = function () {
+            if (!win || !win.scrollTo) return;
+            var metrics = readerProgressMetrics(doc);
+            var target = metrics.maxScroll
+              ? entry.progress * metrics.maxScroll
+              : Math.min(entry.scrollTop, metrics.maxScroll);
+            win.scrollTo(0, Math.max(0, target));
+            updateReaderProgress();
+            saveDiscoursePosition(doc);
+          };
+          window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(restore);
+          });
+          window.setTimeout(restore, 100);
+        }
+
         function updateReaderControls(doc) {
-          var visible =
-            isDiscourseDocument(doc) &&
-            window.innerWidth <= READER_MOBILE_BREAKPOINT;
+          var visible = isReaderDocument(doc);
           readerControls.classList.toggle("is-visible", visible);
           readerControls.setAttribute("aria-hidden", visible ? "false" : "true");
           readerFontDecrease.disabled = readerFontScale <= READER_FONT_MIN;
@@ -1497,14 +1899,19 @@
 
         function bindReaderProgress(doc) {
           unbindReaderProgress();
-          if (!isDiscourseDocument(doc) || !doc.body) {
+          if (!isReaderDocument(doc) || !doc.body) {
             updateReaderControls(doc);
             return;
           }
 
           readerProgressDoc = doc;
           readerProgressWindow = doc.defaultView || frame.contentWindow;
-          readerProgressScrollHandler = updateReaderProgress;
+          readerProgressScrollHandler = isDiscourseDocument(doc)
+            ? function () {
+                updateReaderProgress();
+                scheduleSaveDiscoursePosition(doc);
+              }
+            : null;
           readerProgressResizeHandler = function () {
             var mobileMode = readerUsesMobileViewport(doc);
             if (readerTypographyMobileMode !== mobileMode) {
@@ -1519,22 +1926,28 @@
           applyReaderFontScale(doc);
           updateReaderProgressVisibility(doc);
           updateReaderControls(doc);
-          readerProgressWindow.addEventListener(
-            "scroll",
-            readerProgressScrollHandler,
-            { passive: true },
-          );
+          if (readerProgressScrollHandler) {
+            readerProgressWindow.addEventListener(
+              "scroll",
+              readerProgressScrollHandler,
+              { passive: true },
+            );
+          }
           readerProgressWindow.addEventListener(
             "resize",
             readerProgressResizeHandler,
           );
+          if (isDiscourseDocument(doc)) {
+            restoreDiscoursePosition(doc);
+          }
           updateReaderProgress();
         }
 
         function syncReaderUi() {
           var doc = activeReaderDocument();
           updateReaderProgressToggle(doc);
-          if (!isDiscourseDocument(doc)) {
+          updateReadingTime(doc);
+          if (!isReaderDocument(doc)) {
             updateReaderControls(doc);
             unbindReaderProgress();
             return;
@@ -1550,7 +1963,7 @@
 
         function changeReaderFontScale(delta) {
           var doc = activeReaderDocument();
-          if (!isDiscourseDocument(doc)) return;
+          if (!isReaderDocument(doc)) return;
           var before = readerProgressMetrics(doc);
           var next = clampReaderFontScale(readerFontScale + delta);
           if (next === readerFontScale) return;
@@ -1746,15 +2159,19 @@
           } catch (e) {}
           var theme = document.documentElement.getAttribute("data-theme");
           try {
+            applyThemeToFrame(this.contentDocument, theme);
             this.contentWindow.postMessage(
               { type: "ee7-theme", theme: theme },
               "*",
             );
           } catch (e) {}
           syncCurrentFavoriteButton();
+          syncReaderQuotes(this.contentDocument);
           syncReaderUi();
         });
         syncCurrentFavoriteButton();
+        updateQuotesCount();
+        updateCurrentlyReadingCount();
         syncReaderUi();
 
         // ── Sidebar ─────────────────────────────────────────────────
@@ -1833,6 +2250,7 @@
         function navigateFrame(href, options) {
           var targetUrl = resolveFrameUrl(href);
           if (!targetUrl) return;
+          flushSaveDiscoursePosition(activeReaderDocument());
           var targetHref = targetUrl.href;
           var fromHistory = options && options.fromHistory;
           if (!fromHistory) syncAddressBar(targetHref, false);
@@ -1863,6 +2281,9 @@
         }
 
         window.addEventListener("popstate", loadFrameFromAddress);
+        window.addEventListener("pagehide", function () {
+          flushSaveDiscoursePosition(activeReaderDocument());
+        });
 
         // Fade in every time the iframe loads new content
         frame.addEventListener("load", function () {
@@ -1944,6 +2365,18 @@
 
         // Handle navigation requests posted from the search iframe
         window.addEventListener("message", function (e) {
+          if (e.data && e.data.type === "ee7-quotes-changed") {
+            updateQuotesCount();
+            var quoteDoc = activeReaderDocument();
+            if (window.EE7Quotes && isReaderDocument(quoteDoc)) {
+              window.EE7Quotes.refreshReaderHighlights(quoteDoc);
+            }
+            return;
+          }
+          if (e.data && e.data.type === "ee7-reading-changed") {
+            updateCurrentlyReadingCount();
+            return;
+          }
           if (e.data && e.data.type === "ee7-navigate" && e.data.href) {
             if (e.data.isRandom) {
               try {
@@ -1955,6 +2388,12 @@
             }
             navigateFrame(e.data.href);
           }
+        });
+
+        window.addEventListener("storage", function (e) {
+          if (!e) return;
+          if (e.key === "ee7-quotes") updateQuotesCount();
+          if (e.key === "ee7-currently-reading") updateCurrentlyReadingCount();
         });
       })();
     </script>

@@ -216,7 +216,7 @@
     style.id = STYLE_ID;
     style.textContent =
       ".ee7-favorite-toggle{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:0;background:transparent;color:var(--text-dim);cursor:pointer;transition:color .15s,transform .15s;padding:2px;line-height:1;width:24px;height:24px;outline-offset:3px}" +
-      ".ee7-favorite-toggle:hover{color:var(--accent);background:transparent;transform:scale(1.08)}" +
+      ".ee7-favorite-toggle:hover{color:var(--text-dim);background:transparent;transform:scale(1.08)}" +
       ".ee7-favorite-toggle.is-favorite{color:var(--accent);background:transparent}" +
       ".ee7-favorite-toggle svg{display:block;width:17px;height:17px}" +
       ".ee7-favorite-toggle--compact{width:24px;height:24px;border-radius:0;margin-left:4px}" +

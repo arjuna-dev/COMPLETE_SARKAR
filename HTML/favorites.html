@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dusk">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Favorites — EE 7+</title>
     <script src="Layout/favorites.js"></script>
     <style>
-      :root[data-theme="dark"] {
+      :root[data-theme="dusk"] {
         --bg: #2e2a24;
         --text: #ddd5c8;
         --text-dim: #8c8078;
@@ -14,6 +14,15 @@
         --accent: #e07820;
         --accent-dim: rgba(224, 120, 32, 0.18);
         --border: #3e3228;
+      }
+      :root[data-theme="dark"] {
+        --bg: #17191b;
+        --text: #f2f3f0;
+        --text-dim: #aeb5b8;
+        --text-mid: #aeb5b8;
+        --accent: #ef8b32;
+        --accent-dim: rgba(239, 139, 50, 0.16);
+        --border: #343a3d;
       }
       :root[data-theme="light"] {
         --bg: #f7f4f0;
@@ -23,6 +32,15 @@
         --accent: #c06010;
         --accent-dim: rgba(192, 96, 16, 0.1);
         --border: #d5cfc6;
+      }
+      :root[data-theme="dawn"] {
+        --bg: #d96720;
+        --text: #fff4e5;
+        --text-dim: #ffe0be;
+        --text-mid: #ffe0be;
+        --accent: #fff7e8;
+        --accent-dim: rgba(255, 247, 232, 0.16);
+        --border: rgba(82, 28, 6, 0.28);
       }
 
       *,
@@ -133,15 +151,23 @@
         "use strict";
 
         var THEME_KEY = "ee7-theme";
+        var THEME_VERSION_KEY = "ee7-theme-version";
+        var THEMES = ["light", "dusk", "dark", "dawn"];
 
         function applyTheme(t) {
-          document.documentElement.setAttribute("data-theme", t);
+          document.documentElement.setAttribute(
+            "data-theme",
+            THEMES.indexOf(t) === -1 ? "dusk" : t,
+          );
         }
 
         (function () {
-          var t = "dark";
+          var t = "dusk";
           try {
-            t = localStorage.getItem(THEME_KEY) || "dark";
+            t = localStorage.getItem(THEME_KEY) || "dusk";
+            if (!localStorage.getItem(THEME_VERSION_KEY) && t === "dark") {
+              t = "dusk";
+            }
           } catch (e) {}
           applyTheme(t);
         })();

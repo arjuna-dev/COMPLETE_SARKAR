@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en" data-theme="dusk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Currently reading - EE 7+</title>
+    <script src="Layout/theme.js"></script>
+    <script src="Layout/reading-state.js"></script>
+    <style>
+      :root[data-theme="dusk"] {
+        --bg: #2e2a24;
+        --surface: #352f28;
+        --text: #ddd5c8;
+        --text-dim: #8c8078;
+        --accent: #e07820;
+        --accent-dim: rgba(224, 120, 32, 0.18);
+        --border: #4a3c30;
+      }
+      :root[data-theme="light"] {
+        --bg: #f7f4f0;
+        --surface: #ffffff;
+        --text: #1a160e;
+        --text-dim: #8f8478;
+        --accent: #c06010;
+        --accent-dim: rgba(192, 96, 16, 0.1);
+        --border: #d5cfc6;
+      }
+      :root[data-theme="dark"] {
+        --bg: #17191b;
+        --surface: #222629;
+        --text: #f2f3f0;
+        --text-dim: #aeb5b8;
+        --accent: #ef8b32;
+        --accent-dim: rgba(239, 139, 50, 0.16);
+        --border: #343a3d;
+      }
+      :root[data-theme="dawn"] {
+        --bg: #d96720;
+        --surface: #ed7d2c;
+        --text: #fff4e5;
+        --text-dim: #ffe0be;
+        --accent: #fff7e8;
+        --accent-dim: rgba(255, 247, 232, 0.16);
+        --border: rgba(82, 28, 6, 0.28);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Tahoma, "Arial Unicode MS", Geneva, sans-serif;
+        font-size: 10pt;
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      #page {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 50px 24px 64px;
+      }
+
+      #hero {
+        padding-bottom: 22px;
+      }
+
+      #hero-title {
+        font-size: 19pt;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        margin-bottom: 5px;
+      }
+
+      #hero-sub,
+      #status {
+        color: var(--text-dim);
+        font-size: 8.5pt;
+      }
+
+      #status {
+        min-height: 18px;
+        margin-bottom: 8px;
+      }
+
+      #list {
+        border-top: 1px solid var(--border);
+      }
+
+      .reading-row {
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 16px;
+        padding: 16px 0;
+      }
+
+      .reading-main {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .reading-title {
+        display: block;
+        font-size: 11pt;
+        font-weight: 700;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .reading-meta {
+        color: var(--text-dim);
+        font-size: 8pt;
+        margin-top: 4px;
+      }
+
+      .reading-progress {
+        align-items: center;
+        display: flex;
+        flex-shrink: 0;
+        gap: 10px;
+        min-width: 128px;
+      }
+
+      .progress-track {
+        background: var(--accent-dim);
+        height: 4px;
+        overflow: hidden;
+        width: 76px;
+      }
+
+      .progress-fill {
+        background: var(--accent);
+        height: 100%;
+      }
+
+      .progress-label {
+        color: var(--text-dim);
+        font-size: 8pt;
+        min-width: 38px;
+        text-align: right;
+      }
+
+      .reading-empty {
+        border-top: 1px solid var(--border);
+        color: var(--text-dim);
+        padding: 24px 0;
+      }
+
+      @media (max-width: 560px) {
+        #page {
+          padding: 34px 16px 48px;
+        }
+
+        .reading-row {
+          gap: 10px;
+        }
+
+        .reading-progress {
+          min-width: 50px;
+        }
+
+        .progress-track {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="page">
+      <div id="hero">
+        <div id="hero-title">Currently reading</div>
+        <div id="hero-sub">Your five most recently opened discourses.</div>
+      </div>
+      <div id="status" aria-live="polite"></div>
+      <div id="list"></div>
+    </main>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var THEME_KEY = "ee7-theme";
+
+        function applyTheme(theme) {
+          document.documentElement.setAttribute("data-theme", theme);
+        }
+
+        try {
+          applyTheme(localStorage.getItem(THEME_KEY) || "dusk");
+        } catch (e) {
+          applyTheme("dusk");
+        }
+
+        window.addEventListener("message", function (event) {
+          if (event.data && event.data.type === "ee7-theme") {
+            applyTheme(event.data.theme);
+          }
+        });
+
+        function escapeHtml(value) {
+          return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        }
+
+        function render() {
+          var list = document.getElementById("list");
+          var items = window.EE7ReadingState ? window.EE7ReadingState.read() : [];
+          if (!items.length) {
+            list.innerHTML =
+              '<div class="reading-empty">Open a discourse to start building your reading list.</div>';
+            document.getElementById("status").textContent = "";
+            return;
+          }
+
+          list.innerHTML = items
+            .map(function (item) {
+              var percent = Math.round(item.progress * 100);
+              return (
+                '<article class="reading-row">' +
+                '<div class="reading-main">' +
+                '<a class="reading-title" href="' +
+                escapeHtml(item.href) +
+                '" target="Client">' +
+                escapeHtml(item.title) +
+                "</a>" +
+                '<div class="reading-meta">Resume where you left off</div>' +
+                "</div>" +
+                '<div class="reading-progress" aria-label="' +
+                percent +
+                '% read">' +
+                '<div class="progress-track"><div class="progress-fill" style="width:' +
+                percent +
+                '%"></div></div>' +
+                '<span class="progress-label">' +
+                percent +
+                "%</span></div></article>"
+              );
+            })
+            .join("");
+          document.getElementById("status").textContent =
+            items.length + " discourse" + (items.length === 1 ? "" : "s");
+        }
+
+        document.getElementById("list").addEventListener("click", function (event) {
+          var link = event.target.closest("a.reading-title[href]");
+          if (!link || window.parent === window) return;
+          event.preventDefault();
+          window.parent.postMessage(
+            { type: "ee7-navigate", href: link.getAttribute("href") },
+            "*",
+          );
+        });
+
+        window.addEventListener("storage", function (event) {
+          if (event && event.key === "ee7-currently-reading") render();
+        });
+        window.addEventListener("ee7-reading-changed", render);
+        window.addEventListener("load", render);
+      })();
+    </script>
+  </body>
+</html>

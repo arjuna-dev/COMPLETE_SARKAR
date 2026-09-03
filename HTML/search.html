@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dusk">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,7 +8,7 @@
     <script src="filter_sets.js"></script>
     <script src="Layout/favorites.js"></script>
     <style>
-      :root[data-theme="dark"] {
+      :root[data-theme="dusk"] {
         --bg: #2e2a24;
         --text: #ddd5c8;
         --text-dim: #8c8078;
@@ -20,6 +20,19 @@
         --input-bg: #352f28;
         --input-border: #4a3c30;
         --input-focus: #e07820;
+      }
+      :root[data-theme="dark"] {
+        --bg: #17191b;
+        --text: #f2f3f0;
+        --text-dim: #aeb5b8;
+        --text-mid: #aeb5b8;
+        --accent: #ef8b32;
+        --accent-dim: rgba(239, 139, 50, 0.16);
+        --border: #343a3d;
+        --mark-bg: rgba(239, 139, 50, 0.3);
+        --input-bg: #222629;
+        --input-border: #41494c;
+        --input-focus: #ef8b32;
       }
       :root[data-theme="light"] {
         --bg: #f7f4f0;
@@ -33,6 +46,19 @@
         --input-bg: #ffffff;
         --input-border: #c8c0b4;
         --input-focus: #c06010;
+      }
+      :root[data-theme="dawn"] {
+        --bg: #d96720;
+        --text: #fff4e5;
+        --text-dim: #ffe0be;
+        --text-mid: #ffe0be;
+        --accent: #fff7e8;
+        --accent-dim: rgba(255, 247, 232, 0.16);
+        --border: rgba(82, 28, 6, 0.28);
+        --mark-bg: rgba(255, 244, 218, 0.42);
+        --input-bg: #ed7d2c;
+        --input-border: rgba(82, 28, 6, 0.36);
+        --input-focus: #fff7e8;
       }
 
       *,
@@ -708,15 +734,24 @@
         "use strict";
 
         var THEME_KEY = "ee7-theme";
+        var THEME_VERSION_KEY = "ee7-theme-version";
+        var THEMES = ["light", "dusk", "dark", "dawn"];
+
+        function normalizeTheme(theme) {
+          return THEMES.indexOf(theme) === -1 ? "dusk" : theme;
+        }
 
         function applyTheme(t) {
-          document.documentElement.setAttribute("data-theme", t);
+          document.documentElement.setAttribute("data-theme", normalizeTheme(t));
         }
         // init from localStorage
         (function () {
-          var t = "dark";
+          var t = "dusk";
           try {
-            t = localStorage.getItem(THEME_KEY) || "dark";
+            t = localStorage.getItem(THEME_KEY) || "dusk";
+            if (!localStorage.getItem(THEME_VERSION_KEY) && t === "dark") {
+              t = "dusk";
+            }
           } catch (e) {}
           applyTheme(t);
         })();
