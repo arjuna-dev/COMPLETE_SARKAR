@@ -1575,6 +1575,7 @@
         var readerFontScale = 1;
         var readerProgressDoc = null;
         var readerProgressWindow = null;
+        var readerProgressScrollTargets = [];
         var readerProgressScrollHandler = null;
         var readerProgressResizeHandler = null;
         var readerTypographyDoc = null;
@@ -1925,12 +1926,16 @@
         }
 
         function unbindReaderProgress() {
-          if (readerProgressWindow && readerProgressScrollHandler) {
-            readerProgressWindow.removeEventListener(
-              "scroll",
-              readerProgressScrollHandler,
-            );
+          if (readerProgressScrollHandler) {
+            for (var i = 0; i < readerProgressScrollTargets.length; i++) {
+              readerProgressScrollTargets[i].removeEventListener(
+                "scroll",
+                readerProgressScrollHandler,
+                true,
+              );
+            }
           }
+          readerProgressScrollTargets = [];
           if (readerProgressWindow && readerProgressResizeHandler) {
             readerProgressWindow.removeEventListener(
               "resize",
@@ -1987,12 +1992,23 @@
           resetReaderTopbar(doc);
           updateReaderProgressVisibility(doc);
           updateReaderControls(doc);
-          if (readerProgressScrollHandler) {
-            readerProgressWindow.addEventListener(
-              "scroll",
-              readerProgressScrollHandler,
-              { passive: true },
-            );
+          var scrollTargets = [
+            readerProgressWindow,
+            doc,
+            doc.scrollingElement,
+            doc.documentElement,
+            doc.body,
+          ];
+          for (var i = 0; i < scrollTargets.length; i++) {
+            var target = scrollTargets[i];
+            if (!target || readerProgressScrollTargets.indexOf(target) !== -1) {
+              continue;
+            }
+            target.addEventListener("scroll", readerProgressScrollHandler, {
+              passive: true,
+              capture: true,
+            });
+            readerProgressScrollTargets.push(target);
           }
           readerProgressWindow.addEventListener(
             "resize",
