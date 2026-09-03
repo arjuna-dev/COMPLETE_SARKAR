@@ -401,18 +401,12 @@
         color: var(--text-dim);
         display: none;
         font-size: 8pt;
-        gap: 5px;
         margin-left: 8px;
         white-space: nowrap;
       }
       #reading-time.is-visible {
         display: flex;
       }
-      #reading-time svg {
-        flex-shrink: 0;
-        opacity: 0.85;
-      }
-
       .nav-count {
         color: var(--text-dim);
         display: none;
@@ -1055,24 +1049,10 @@
           </div>
 
           <div id="reading-time" aria-live="polite">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.35"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="8" cy="8" r="5.5" />
-              <path d="M8 4.7v3.6l2.1 1.3" />
-            </svg>
             <span id="reading-time-value"></span>
           </div>
 
-          <!-- Reading progress toggle, visible for discourse documents -->
+          <!-- Reading progress toggle, visible while reading -->
           <button
             class="bar-btn"
             id="reading-progress-toggle"
@@ -1267,7 +1247,6 @@
                 stroke-linecap="round"
               />
             </svg>
-            <span class="bar-btn-label" id="theme-label">Dusk</span>
           </button>
           <div id="reading-progress" aria-hidden="true">
             <div
@@ -1311,12 +1290,6 @@
         var THEME_KEY = "ee7-theme";
         var THEME_VERSION_KEY = "ee7-theme-version";
         var THEMES = ["light", "dusk", "dark", "dawn"];
-        var THEME_LABELS = {
-          light: "Light",
-          dusk: "Dusk",
-          dark: "Dark",
-          dawn: "Dawn",
-        };
 
         function normalizeTheme(theme) {
           return THEMES.indexOf(theme) === -1 ? "dusk" : theme;
@@ -1367,18 +1340,10 @@
           document.getElementById("icon-sun").style.display = dark
             ? "none"
             : "";
-          var themeLabel = document.getElementById("theme-label");
-          if (themeLabel) themeLabel.textContent = THEME_LABELS[theme];
           var themeButton = document.getElementById("theme-btn");
           if (themeButton) {
-            var nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-            var nextLabel = THEME_LABELS[nextTheme];
-            themeButton.title =
-              THEME_LABELS[theme] + " theme. Switch to " + nextLabel + " theme";
-            themeButton.setAttribute(
-              "aria-label",
-              THEME_LABELS[theme] + " theme. Switch to " + nextLabel + " theme",
-            );
+            themeButton.title = "Change theme";
+            themeButton.setAttribute("aria-label", "Change theme");
           }
           try {
             localStorage.setItem(THEME_KEY, theme);
@@ -1530,6 +1495,13 @@
               updateQuotesCount();
               showToast(alreadySaved ? "Quote already saved" : "Quote saved");
             },
+            onRemoved: function () {
+              updateQuotesCount();
+              showToast("Quote removed");
+            },
+            onLimit: function (limit) {
+              showToast("Quotes can be up to " + limit + " words");
+            },
           });
         }
 
@@ -1649,7 +1621,7 @@
         }
 
         function updateReaderProgressToggle(doc) {
-          var visible = isDiscourseDocument(doc);
+          var visible = isReaderDocument(doc);
           var label = readerProgressEnabled
             ? "Hide reading progress"
             : "Show reading progress";
@@ -1671,7 +1643,7 @@
         }
 
         function updateReaderProgressVisibility(doc) {
-          var visible = isDiscourseDocument(doc) && readerProgressEnabled;
+          var visible = isReaderDocument(doc) && readerProgressEnabled;
           readingProgress.classList.toggle("is-visible", visible);
           readingProgress.setAttribute("aria-hidden", visible ? "false" : "true");
         }
@@ -1759,7 +1731,7 @@
         }
 
         function updateReaderProgress() {
-          if (!readerProgressDoc || !isDiscourseDocument(readerProgressDoc)) {
+          if (!readerProgressDoc || !isReaderDocument(readerProgressDoc)) {
             return;
           }
           var metrics = readerProgressMetrics(readerProgressDoc);
@@ -1906,12 +1878,12 @@
 
           readerProgressDoc = doc;
           readerProgressWindow = doc.defaultView || frame.contentWindow;
-          readerProgressScrollHandler = isDiscourseDocument(doc)
-            ? function () {
-                updateReaderProgress();
-                scheduleSaveDiscoursePosition(doc);
-              }
-            : null;
+          readerProgressScrollHandler = function () {
+            updateReaderProgress();
+            if (isDiscourseDocument(doc)) {
+              scheduleSaveDiscoursePosition(doc);
+            }
+          };
           readerProgressResizeHandler = function () {
             var mobileMode = readerUsesMobileViewport(doc);
             if (readerTypographyMobileMode !== mobileMode) {
@@ -1991,7 +1963,7 @@
         });
         readingProgressToggle.addEventListener("click", function () {
           var doc = activeReaderDocument();
-          if (!isDiscourseDocument(doc)) return;
+          if (!isReaderDocument(doc)) return;
           setReaderProgressEnabled(!readerProgressEnabled);
         });
 

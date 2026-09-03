@@ -134,6 +134,24 @@
     return item;
   }
 
+  function remove(href) {
+    var items = read();
+    var index = findIndex(items, href);
+    if (index === -1) return false;
+    items.splice(index, 1);
+    write(items);
+    notifyChange();
+    return true;
+  }
+
+  function clear() {
+    var items = read();
+    if (!items.length) return false;
+    write([]);
+    notifyChange();
+    return true;
+  }
+
   window.EE7ReadingState = {
     key: KEY,
     limit: LIMIT,
@@ -143,6 +161,8 @@
     save: save,
     find: find,
     touch: touch,
+    remove: remove,
+    clear: clear,
   };
 
   window.addEventListener("storage", function (e) {

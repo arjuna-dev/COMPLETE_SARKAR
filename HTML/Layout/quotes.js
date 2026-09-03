@@ -5,6 +5,7 @@
   var KEY = "ee7-quotes";
   var STYLE_ID = "ee7-quotes-style";
   var MENU_ID = "ee7-quote-selection-menu";
+  var MAX_QUOTE_WORDS = 2000;
 
   var boundDocument = null;
   var boundWindow = null;
@@ -23,6 +24,15 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function normalizeQuoteText(value) {
+    return toStringSafe(value).replace(/\s+/g, " ").trim();
+  }
+
+  function quoteWordCount(value) {
+    var text = normalizeQuoteText(value);
+    return text ? text.split(/\s+/).length : 0;
   }
 
   function normalizeHref(href) {
@@ -50,9 +60,7 @@
   }
 
   function normalizeQuote(quote) {
-    var text = toStringSafe(quote && quote.text)
-      .replace(/\s+/g, " ")
-      .trim();
+    var text = normalizeQuoteText(quote && quote.text);
     return {
       id: toStringSafe(quote && quote.id),
       href: normalizeHref(quote && quote.href),
@@ -236,6 +244,20 @@
     }
   }
 
+  function closestHighlight(node) {
+    var element = node && node.nodeType === 1 ? node : node && node.parentElement;
+    return element && element.closest
+      ? element.closest("mark.ee7-quote-highlight")
+      : null;
+  }
+
+  function quoteIdForRange(range) {
+    var startMark = closestHighlight(range && range.startContainer);
+    var endMark = closestHighlight(range && range.endContainer);
+    if (!startMark || startMark !== endMark) return "";
+    return toStringSafe(startMark.getAttribute("data-ee7-quote-id"));
+  }
+
   function selectionSnapshot(doc) {
     if (!isReaderDocument(doc) || !doc.getSelection) return null;
     var selection = doc.getSelection();
@@ -263,19 +285,24 @@
     end -= trailing;
     if (end <= start) return null;
 
+    var text = normalizeQuoteText(rawText);
+    if (!text) return null;
+
     return {
-      text: rawText.slice(leading, rawText.length - trailing).replace(/\s+/g, " ").trim(),
+      text: text,
       startOffset: start,
       endOffset: end,
       rect: range.getBoundingClientRect(),
+      range: range.cloneRange(),
+      quoteId: quoteIdForRange(range),
     };
   }
 
   function wrapTextNodeSlice(doc, node, start, end, id) {
-    if (!node || !node.parentNode || end <= start) return;
+    if (!node || !node.parentNode || end <= start) return false;
     var parent = node.parentElement;
     if (parent && parent.classList && parent.classList.contains("ee7-quote-highlight")) {
-      return;
+      return false;
     }
 
     var target = node;
@@ -288,6 +315,57 @@
     mark.setAttribute("data-ee7-quote-id", id);
     target.parentNode.replaceChild(mark, target);
     mark.appendChild(target);
+    return true;
+  }
+
+  function applyHighlightRange(doc, sourceRange, id) {
+    if (!doc || !doc.body || !sourceRange || sourceRange.collapsed) return false;
+    var range = sourceRange.cloneRange();
+    var rangeApi = doc.defaultView && doc.defaultView.Range;
+    var startToEnd = rangeApi ? rangeApi.START_TO_END : 1;
+    var endToStart = rangeApi ? rangeApi.END_TO_START : 3;
+    var nodes = textNodes(doc);
+    var slices = [];
+
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var nodeRange = doc.createRange();
+      nodeRange.selectNodeContents(node);
+      var intersects = false;
+      try {
+        if (range.intersectsNode) {
+          intersects = range.intersectsNode(node);
+        } else {
+          intersects =
+            range.compareBoundaryPoints(startToEnd, nodeRange) < 0 &&
+            range.compareBoundaryPoints(endToStart, nodeRange) > 0;
+        }
+      } catch (e) {
+        continue;
+      }
+      if (!intersects) continue;
+
+      var start = node === range.startContainer ? range.startOffset : 0;
+      var end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+      start = Math.max(0, Math.min(node.nodeValue.length, start));
+      end = Math.max(0, Math.min(node.nodeValue.length, end));
+      if (end > start && /\S/.test(node.nodeValue)) {
+        slices.push({ node: node, start: start, end: end });
+      }
+    }
+
+    var wrapped = false;
+    for (var j = slices.length - 1; j >= 0; j--) {
+      wrapped =
+        wrapTextNodeSlice(
+          doc,
+          slices[j].node,
+          slices[j].start,
+          slices[j].end,
+          id,
+        ) || wrapped;
+    }
+    return wrapped;
   }
 
   function applyHighlightOffsets(doc, startOffset, endOffset, id) {
@@ -302,14 +380,14 @@
       var overlapStart = Math.max(startOffset, nodeStart);
       var overlapEnd = Math.min(endOffset, nodeEnd);
       if (overlapEnd > overlapStart) {
-        wrapTextNodeSlice(
-          doc,
-          node,
-          overlapStart - nodeStart,
-          overlapEnd - nodeStart,
-          id,
-        );
-        wrapped = true;
+        wrapped =
+          wrapTextNodeSlice(
+            doc,
+            node,
+            overlapStart - nodeStart,
+            overlapEnd - nodeStart,
+            id,
+          ) || wrapped;
       }
       total = nodeEnd;
       if (total >= endOffset) break;
@@ -317,38 +395,153 @@
     return wrapped;
   }
 
-  function normalizedTextIndex(doc, value) {
+  var BLOCK_TAGS = {
+    ADDRESS: true,
+    ARTICLE: true,
+    ASIDE: true,
+    BLOCKQUOTE: true,
+    DIV: true,
+    DL: true,
+    FIELDSET: true,
+    FIGURE: true,
+    FOOTER: true,
+    FORM: true,
+    H1: true,
+    H2: true,
+    H3: true,
+    H4: true,
+    H5: true,
+    H6: true,
+    HEADER: true,
+    HR: true,
+    LI: true,
+    MAIN: true,
+    NAV: true,
+    OL: true,
+    P: true,
+    PRE: true,
+    SECTION: true,
+    TABLE: true,
+    UL: true,
+  };
+
+  function blockAncestor(doc, node) {
+    var element = node && node.parentElement;
+    while (element && element !== doc.body) {
+      if (BLOCK_TAGS[element.tagName]) return element;
+      element = element.parentElement;
+    }
+    return doc.body;
+  }
+
+  function normalizedTextMap(doc) {
     var nodes = textNodes(doc);
-    var normalized = "";
-    var rawIndexes = [];
+    var entries = [];
     var rawOffset = 0;
+    var previousNode = null;
     var previousWasSpace = false;
+
     for (var i = 0; i < nodes.length; i++) {
-      var content = nodes[i].nodeValue;
+      var node = nodes[i];
+      var content = node.nodeValue;
+      if (
+        previousNode &&
+        content &&
+        !previousWasSpace &&
+        !/\s/.test(content.charAt(0)) &&
+        blockAncestor(doc, previousNode) !== blockAncestor(doc, node)
+      ) {
+        entries.push({
+          character: " ",
+          node: previousNode,
+          offset: previousNode.nodeValue.length,
+          rawOffset: rawOffset,
+        });
+        previousWasSpace = true;
+      }
+
       for (var j = 0; j < content.length; j++) {
         var character = content.charAt(j);
         if (/\s/.test(character)) {
           if (!previousWasSpace) {
-            normalized += " ";
-            rawIndexes.push(rawOffset + j);
+            entries.push({
+              character: " ",
+              node: node,
+              offset: j,
+              rawOffset: rawOffset + j,
+            });
           }
           previousWasSpace = true;
         } else {
-          normalized += character;
-          rawIndexes.push(rawOffset + j);
+          entries.push({
+            character: character,
+            node: node,
+            offset: j,
+            rawOffset: rawOffset + j,
+          });
           previousWasSpace = false;
         }
       }
       rawOffset += content.length;
+      previousNode = node;
     }
-    normalized = normalized.trim();
-    var needle = toStringSafe(value).replace(/\s+/g, " ").trim();
-    var index = normalized.indexOf(needle);
-    if (index === -1 || !needle) return null;
-    var start = rawIndexes[index];
-    var endIndex = index + needle.length - 1;
-    var end = rawIndexes[endIndex] + 1;
-    return { startOffset: start, endOffset: end };
+
+    while (entries.length && entries[0].character === " ") entries.shift();
+    while (entries.length && entries[entries.length - 1].character === " ") {
+      entries.pop();
+    }
+    return {
+      entries: entries,
+      text: entries
+        .map(function (entry) {
+          return entry.character;
+        })
+        .join(""),
+    };
+  }
+
+  function findTextRange(doc, value, preferredOffset) {
+    var needle = normalizeQuoteText(value);
+    if (!needle) return null;
+    var map = normalizedTextMap(doc);
+    var index = map.text.indexOf(needle);
+    var bestIndex = -1;
+    var bestDistance = Infinity;
+    while (index !== -1) {
+      var distance =
+        typeof preferredOffset === "number"
+          ? Math.abs(map.entries[index].rawOffset - preferredOffset)
+          : index;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+      index = map.text.indexOf(needle, index + 1);
+    }
+    if (bestIndex === -1) return null;
+
+    var first = map.entries[bestIndex];
+    var last = map.entries[bestIndex + needle.length - 1];
+    if (!first || !last) return null;
+    var range = doc.createRange();
+    try {
+      range.setStart(first.node, first.offset);
+      range.setEnd(last.node, last.offset + 1);
+    } catch (e) {
+      return null;
+    }
+    return {
+      range: range,
+      startOffset: first.rawOffset,
+      endOffset: last.rawOffset + 1,
+    };
+  }
+
+  function normalizedTextIndex(doc, value, preferredOffset) {
+    var match = findTextRange(doc, value, preferredOffset);
+    return match
+      ? { startOffset: match.startOffset, endOffset: match.endOffset }
+      : null;
   }
 
   function clearHighlights(doc) {
@@ -379,6 +572,10 @@
     });
     for (var i = 0; i < items.length; i++) {
       var quote = items[i];
+      var textMatch = findTextRange(doc, quote.text, quote.startOffset);
+      if (textMatch && applyHighlightRange(doc, textMatch.range, quote.id)) {
+        continue;
+      }
       var offsets = {
         startOffset: quote.startOffset,
         endOffset: quote.endOffset,
@@ -409,8 +606,8 @@
       'html[data-theme="dawn"]{--ee7-quote-highlight-bg:rgba(255,244,218,.42);--ee7-quote-highlight-text:#321607}' +
       ".ee7-quote-highlight{background:var(--ee7-quote-highlight-bg,rgba(224,120,32,.28));color:var(--ee7-quote-highlight-text,inherit);border-radius:.18em;box-shadow:0 .08em 0 rgba(224,120,32,.18);padding:.02em .08em;-webkit-box-decoration-break:clone;box-decoration-break:clone}" +
       ".ee7-quote-selection-menu{position:fixed;z-index:2147483000;display:flex;align-items:center;padding:4px;background:var(--surface,#352f28);border:1px solid var(--border,#4a3c30);border-radius:7px;box-shadow:0 7px 22px rgba(0,0,0,.25);font:10pt/1.2 Tahoma,Arial,sans-serif;white-space:nowrap}" +
-      ".ee7-quote-selection-menu button{border:0;border-radius:4px;background:var(--accent,#e07820);color:#fff7ec;cursor:pointer;font:700 9pt/1 Tahoma,Arial,sans-serif;padding:8px 11px}" +
-      ".ee7-quote-selection-menu button:hover{filter:brightness(1.08)}" +
+      ".ee7-quote-selection-menu button{border:1px solid rgba(255,255,255,.14);border-radius:4px;background:#30363a;color:#f7f4ec;cursor:pointer;font:700 9pt/1 Tahoma,Arial,sans-serif;padding:8px 11px}" +
+      ".ee7-quote-selection-menu button:hover{background:#454d52}" +
       ".ee7-quote-selection-menu button:focus-visible{outline:2px solid var(--accent,#e07820);outline-offset:2px}" +
       "@media(prefers-reduced-motion:reduce){.ee7-quote-selection-menu button{transition:none}}";
     doc.head.appendChild(style);
@@ -440,8 +637,22 @@
     selectionMenu.style.top = Math.round(top) + "px";
   }
 
+  function applyQuoteHighlight(doc, text, startOffset, endOffset, id, sourceRange) {
+    if (sourceRange && applyHighlightRange(doc, sourceRange, id)) return true;
+    var textMatch = findTextRange(doc, text, startOffset);
+    if (textMatch && applyHighlightRange(doc, textMatch.range, id)) return true;
+    return applyHighlightOffsets(doc, startOffset, endOffset, id);
+  }
+
   function saveQuote(doc, snapshot, options) {
-    if (!snapshot || !snapshot.text || !isReaderDocument(doc)) return null;
+    if (
+      !snapshot ||
+      !snapshot.text ||
+      quoteWordCount(snapshot.text) > MAX_QUOTE_WORDS ||
+      !isReaderDocument(doc)
+    ) {
+      return null;
+    }
     var href = getPageHref(doc);
     var title = (options && options.title) || getReaderTitle(doc);
     var items = readQuotes();
@@ -452,7 +663,14 @@
         items[i].endOffset === snapshot.endOffset &&
         items[i].text === snapshot.text
       ) {
-        applyHighlightOffsets(doc, items[i].startOffset, items[i].endOffset, items[i].id);
+        applyQuoteHighlight(
+          doc,
+          items[i].text,
+          items[i].startOffset,
+          items[i].endOffset,
+          items[i].id,
+          snapshot.range,
+        );
         return { quote: items[i], alreadySaved: true };
       }
     }
@@ -468,23 +686,38 @@
     };
     items.unshift(quote);
     writeQuotes(items);
-    applyHighlightOffsets(doc, quote.startOffset, quote.endOffset, quote.id);
+    applyQuoteHighlight(
+      doc,
+      quote.text,
+      quote.startOffset,
+      quote.endOffset,
+      quote.id,
+      snapshot.range,
+    );
     notifyChange();
     return { quote: quote, alreadySaved: false };
   }
 
-  function showSelectionMenu(doc, options) {
+  function showActionMenu(doc, options, action, snapshot, quoteId, rect) {
     removeSelectionMenu();
-    var snapshot = selectionSnapshot(doc);
-    if (!snapshot) return;
-    pendingSelection = { doc: doc, snapshot: snapshot, options: options || {} };
+    pendingSelection = {
+      doc: doc,
+      snapshot: snapshot,
+      options: options || {},
+      action: action,
+      quoteId: quoteId || "",
+      rect: rect,
+    };
     injectStyle(doc);
 
     var menu = doc.createElement("div");
     menu.id = MENU_ID;
     menu.className = "ee7-quote-selection-menu";
     menu.setAttribute("role", "menu");
-    menu.innerHTML = '<button type="button" role="menuitem">Save quote</button>';
+    menu.innerHTML =
+      '<button type="button" role="menuitem">' +
+      (action === "remove" ? "Remove quote" : "Save quote") +
+      "</button>";
     menu.addEventListener("mousedown", function (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -494,7 +727,21 @@
       event.stopPropagation();
       if (!pendingSelection) return;
       var state = pendingSelection;
-      var result = saveQuote(state.doc, state.snapshot, state.options);
+      var result = null;
+      if (state.action === "remove") {
+        var removed = deleteQuote(state.quoteId);
+        if (removed) refreshReaderHighlights(state.doc);
+        removeSelectionMenu();
+        var removeSelection = state.doc.getSelection && state.doc.getSelection();
+        if (removeSelection && removeSelection.removeAllRanges) {
+          removeSelection.removeAllRanges();
+        }
+        if (removed && typeof state.options.onRemoved === "function") {
+          state.options.onRemoved(state.quoteId);
+        }
+        return;
+      }
+      result = saveQuote(state.doc, state.snapshot, state.options);
       removeSelectionMenu();
       var selection = state.doc.getSelection && state.doc.getSelection();
       if (selection && selection.removeAllRanges) selection.removeAllRanges();
@@ -504,7 +751,42 @@
     });
     doc.body.appendChild(menu);
     selectionMenu = menu;
-    positionSelectionMenu(doc, snapshot.rect);
+    positionSelectionMenu(doc, rect);
+  }
+
+  function showSelectionMenu(doc, options) {
+    var snapshot = selectionSnapshot(doc);
+    if (!snapshot) return;
+    var config = options || {};
+    if (quoteWordCount(snapshot.text) > MAX_QUOTE_WORDS) {
+      removeSelectionMenu();
+      if (typeof config.onLimit === "function") {
+        config.onLimit(MAX_QUOTE_WORDS);
+      }
+      return;
+    }
+    showActionMenu(
+      doc,
+      config,
+      snapshot.quoteId ? "remove" : "save",
+      snapshot,
+      snapshot.quoteId,
+      snapshot.rect,
+    );
+  }
+
+  function showRemoveMenu(doc, mark, options) {
+    if (!mark) return;
+    var quoteId = toStringSafe(mark.getAttribute("data-ee7-quote-id"));
+    if (!quoteId) return;
+    showActionMenu(
+      doc,
+      options || {},
+      "remove",
+      null,
+      quoteId,
+      mark.getBoundingClientRect(),
+    );
   }
 
   function unbindReaderDocument() {
@@ -513,6 +795,8 @@
       boundDocument.removeEventListener("touchend", boundHandlers.touchend);
       boundDocument.removeEventListener("mousedown", boundHandlers.mousedown);
       boundDocument.removeEventListener("keydown", boundHandlers.keydown);
+      boundDocument.removeEventListener("keyup", boundHandlers.keyup);
+      boundDocument.removeEventListener("click", boundHandlers.click);
       boundDocument.removeEventListener("scroll", boundHandlers.scroll, true);
     }
     if (boundWindow && boundHandlers && boundHandlers.resize) {
@@ -553,12 +837,40 @@
       keydown: function (event) {
         if (event.key === "Escape") removeSelectionMenu();
       },
+      keyup: function (event) {
+        if (
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight" ||
+          event.key === "ArrowUp" ||
+          event.key === "ArrowDown" ||
+          event.key === "Home" ||
+          event.key === "End"
+        ) {
+          handleSelection();
+        }
+      },
+      click: function (event) {
+        var target = event.target;
+        var mark =
+          target && target.closest
+            ? target.closest("mark.ee7-quote-highlight")
+            : null;
+        if (!mark) return;
+        var selection = doc.getSelection && doc.getSelection();
+        if (selection && !selection.isCollapsed) return;
+        showRemoveMenu(doc, mark, config);
+      },
       scroll: function () {
         removeSelectionMenu();
       },
       resize: function () {
         if (selectionMenu && pendingSelection) {
-          positionSelectionMenu(doc, pendingSelection.snapshot.rect);
+          positionSelectionMenu(
+            doc,
+            pendingSelection.snapshot
+              ? pendingSelection.snapshot.rect
+              : pendingSelection.rect,
+          );
         }
       },
     };
@@ -566,6 +878,8 @@
     doc.addEventListener("touchend", handlers.touchend, { passive: true });
     doc.addEventListener("mousedown", handlers.mousedown);
     doc.addEventListener("keydown", handlers.keydown);
+    doc.addEventListener("keyup", handlers.keyup);
+    doc.addEventListener("click", handlers.click);
     doc.addEventListener("scroll", handlers.scroll, true);
     var win = doc.defaultView;
     if (win) win.addEventListener("resize", handlers.resize);
@@ -613,9 +927,12 @@
         '<article class="quote-card" data-quote-id="' +
         escapeHtml(quote.id) +
         '">' +
+        '<div class="quote-preview" data-quote-expand role="button" tabindex="0" aria-expanded="false">' +
         '<blockquote class="quote-text">' +
         escapeHtml(quote.text) +
         "</blockquote>" +
+        '<span class="quote-expand-label">Show full quote</span>' +
+        "</div>" +
         '<div class="quote-card-footer">' +
         '<a class="quote-source" href="' +
         escapeHtml(quote.href) +
@@ -645,6 +962,7 @@
     renderQuotesPage: renderQuotesPage,
     isReaderDocument: isReaderDocument,
     getReaderTitle: getReaderTitle,
+    maxQuoteWords: MAX_QUOTE_WORDS,
   };
 
   window.addEventListener("storage", function (event) {

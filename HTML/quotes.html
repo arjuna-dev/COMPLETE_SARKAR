@@ -113,10 +113,41 @@
       .quote-text {
         border-left: 3px solid var(--accent);
         color: var(--text);
+        display: -webkit-box;
         font-size: 11pt;
         line-height: 1.62;
         margin: 0;
+        overflow: hidden;
         padding: 1px 0 2px 15px;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+        overflow-wrap: anywhere;
+      }
+
+      .quote-preview {
+        cursor: pointer;
+        outline: none;
+      }
+
+      .quote-preview:focus-visible {
+        border-radius: 3px;
+        outline: 2px solid var(--accent);
+        outline-offset: 5px;
+      }
+
+      .quote-card.is-expanded .quote-text {
+        display: block;
+      }
+
+      .quote-expand-label {
+        color: var(--text-dim);
+        display: block;
+        font-size: 7.75pt;
+        margin: 8px 0 0 18px;
+      }
+
+      .quote-card.is-expanded .quote-expand-label {
+        color: var(--accent);
       }
 
       .quote-card-footer {
@@ -213,7 +244,24 @@
             : "";
         }
 
+        function toggleQuotePreview(preview) {
+          var card = preview.closest(".quote-card");
+          if (!card) return;
+          var expanded = card.classList.toggle("is-expanded");
+          preview.setAttribute("aria-expanded", expanded ? "true" : "false");
+          var label = preview.querySelector(".quote-expand-label");
+          if (label) {
+            label.textContent = expanded ? "Show less" : "Show full quote";
+          }
+        }
+
         document.getElementById("list").addEventListener("click", function (event) {
+          var preview = event.target.closest("[data-quote-expand]");
+          if (preview) {
+            toggleQuotePreview(preview);
+            return;
+          }
+
           var deleteButton = event.target.closest("[data-quote-delete]");
           if (deleteButton) {
             event.preventDefault();
@@ -232,6 +280,14 @@
             { type: "ee7-navigate", href: link.getAttribute("href") },
             "*",
           );
+        });
+
+        document.getElementById("list").addEventListener("keydown", function (event) {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          var preview = event.target.closest("[data-quote-expand]");
+          if (!preview) return;
+          event.preventDefault();
+          toggleQuotePreview(preview);
         });
 
         window.addEventListener("storage", function (event) {

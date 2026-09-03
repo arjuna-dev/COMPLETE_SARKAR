@@ -77,7 +77,15 @@
       }
 
       #hero {
+        align-items: flex-end;
+        display: flex;
+        gap: 24px;
+        justify-content: space-between;
         padding-bottom: 22px;
+      }
+
+      .hero-copy {
+        min-width: 0;
       }
 
       #hero-title {
@@ -98,11 +106,33 @@
         margin-bottom: 8px;
       }
 
+      .remove-all-button,
+      .reading-remove {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        cursor: pointer;
+        font: inherit;
+        font-size: 8pt;
+        line-height: 1;
+        padding: 7px 10px;
+        white-space: nowrap;
+      }
+
+      .remove-all-button:hover,
+      .remove-all-button:focus-visible,
+      .reading-remove:hover,
+      .reading-remove:focus-visible {
+        border-color: var(--text-dim);
+        color: var(--text);
+      }
+
       #list {
         border-top: 1px solid var(--border);
       }
 
       .reading-row {
+        align-items: center;
         border-bottom: 1px solid var(--border);
         display: flex;
         gap: 16px;
@@ -157,15 +187,101 @@
         text-align: right;
       }
 
+      .reading-remove {
+        flex-shrink: 0;
+      }
+
       .reading-empty {
         border-top: 1px solid var(--border);
         color: var(--text-dim);
         padding: 24px 0;
       }
 
+      .modal-backdrop {
+        align-items: center;
+        background: rgba(0, 0, 0, 0.52);
+        display: flex;
+        inset: 0;
+        justify-content: center;
+        padding: 20px;
+        position: fixed;
+        z-index: 10;
+      }
+
+      .modal-backdrop[hidden] {
+        display: none;
+      }
+
+      .modal-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+        max-width: 420px;
+        padding: 24px;
+        width: 100%;
+      }
+
+      .modal-title {
+        font-size: 13pt;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .modal-copy {
+        color: var(--text-dim);
+        font-size: 9pt;
+        line-height: 1.55;
+        margin: 10px 0 0;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 22px;
+      }
+
+      .modal-button {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        cursor: pointer;
+        font: inherit;
+        font-size: 8.5pt;
+        padding: 8px 12px;
+      }
+
+      .modal-button:hover,
+      .modal-button:focus-visible {
+        border-color: var(--text-dim);
+        color: var(--text);
+      }
+
+      .modal-button--danger {
+        background: #5a3830;
+        border-color: #75473b;
+        color: #fff4e5;
+      }
+
+      .modal-button--danger:hover,
+      .modal-button--danger:focus-visible {
+        background: #704339;
+        border-color: #956153;
+        color: #fff8ef;
+      }
+
       @media (max-width: 560px) {
         #page {
           padding: 34px 16px 48px;
+        }
+
+        #hero {
+          align-items: flex-start;
+          display: block;
+        }
+
+        .remove-all-button {
+          margin-top: 16px;
         }
 
         .reading-row {
@@ -185,12 +301,41 @@
   <body>
     <main id="page">
       <div id="hero">
-        <div id="hero-title">Currently reading</div>
-        <div id="hero-sub">Your five most recently opened discourses.</div>
+        <div class="hero-copy">
+          <div id="hero-title">Currently reading</div>
+          <div id="hero-sub">Your five most recently opened discourses.</div>
+        </div>
+        <button id="remove-all-button" class="remove-all-button" type="button" hidden>
+          Remove all
+        </button>
       </div>
       <div id="status" aria-live="polite"></div>
       <div id="list"></div>
     </main>
+
+    <div
+      id="remove-all-modal"
+      class="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="remove-all-title"
+      hidden
+    >
+      <div class="modal-card">
+        <h2 id="remove-all-title" class="modal-title">Remove all saved discourses?</h2>
+        <p class="modal-copy">
+          This will clear every saved reading position from this browser. This action cannot be undone.
+        </p>
+        <div class="modal-actions">
+          <button id="remove-all-cancel" class="modal-button" type="button">
+            Cancel
+          </button>
+          <button id="remove-all-confirm" class="modal-button modal-button--danger" type="button">
+            Remove all
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script>
       (function () {
@@ -214,6 +359,28 @@
           }
         });
 
+        var list = document.getElementById("list");
+        var removeAllButton = document.getElementById("remove-all-button");
+        var removeAllModal = document.getElementById("remove-all-modal");
+        var removeAllCancel = document.getElementById("remove-all-cancel");
+        var removeAllConfirm = document.getElementById("remove-all-confirm");
+        var returnFocus = null;
+
+        function closeRemoveAllModal() {
+          removeAllModal.hidden = true;
+          if (returnFocus && returnFocus.focus) returnFocus.focus();
+          returnFocus = null;
+        }
+
+        function openRemoveAllModal() {
+          if (!window.EE7ReadingState || !window.EE7ReadingState.read().length) {
+            return;
+          }
+          returnFocus = document.activeElement;
+          removeAllModal.hidden = false;
+          removeAllConfirm.focus();
+        }
+
         function escapeHtml(value) {
           return String(value == null ? "" : value)
             .replace(/&/g, "&amp;")
@@ -224,12 +391,13 @@
         }
 
         function render() {
-          var list = document.getElementById("list");
           var items = window.EE7ReadingState ? window.EE7ReadingState.read() : [];
+          removeAllButton.hidden = !items.length;
           if (!items.length) {
             list.innerHTML =
               '<div class="reading-empty">Open a discourse to start building your reading list.</div>';
             document.getElementById("status").textContent = "";
+            closeRemoveAllModal();
             return;
           }
 
@@ -254,7 +422,10 @@
                 '%"></div></div>' +
                 '<span class="progress-label">' +
                 percent +
-                "%</span></div></article>"
+                "%</span></div>" +
+                '<button class="reading-remove" type="button" data-reading-delete="' +
+                escapeHtml(item.href) +
+                '">Remove</button></article>'
               );
             })
             .join("");
@@ -262,7 +433,19 @@
             items.length + " discourse" + (items.length === 1 ? "" : "s");
         }
 
-        document.getElementById("list").addEventListener("click", function (event) {
+        list.addEventListener("click", function (event) {
+          var deleteButton = event.target.closest("[data-reading-delete]");
+          if (deleteButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (window.EE7ReadingState) {
+              window.EE7ReadingState.remove(
+                deleteButton.getAttribute("data-reading-delete"),
+              );
+              render();
+            }
+            return;
+          }
           var link = event.target.closest("a.reading-title[href]");
           if (!link || window.parent === window) return;
           event.preventDefault();
@@ -270,6 +453,22 @@
             { type: "ee7-navigate", href: link.getAttribute("href") },
             "*",
           );
+        });
+
+        removeAllButton.addEventListener("click", openRemoveAllModal);
+        removeAllCancel.addEventListener("click", closeRemoveAllModal);
+        removeAllConfirm.addEventListener("click", function () {
+          if (window.EE7ReadingState) window.EE7ReadingState.clear();
+          closeRemoveAllModal();
+          render();
+        });
+        removeAllModal.addEventListener("click", function (event) {
+          if (event.target === removeAllModal) closeRemoveAllModal();
+        });
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && !removeAllModal.hidden) {
+            closeRemoveAllModal();
+          }
         });
 
         window.addEventListener("storage", function (event) {
