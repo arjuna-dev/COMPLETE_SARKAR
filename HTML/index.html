@@ -2054,6 +2054,7 @@
             if (win && after.maxScroll) {
               win.scrollTo(0, before.fraction * after.maxScroll);
             }
+            resetReaderTopbar(doc);
             updateReaderProgress();
           });
         }
