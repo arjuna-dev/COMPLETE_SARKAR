@@ -1,4 +1,4 @@
-/* EE7 reading state - localStorage-backed discourse positions. */
+/* EE7 reading state - localStorage-backed reader positions. */
 (function () {
   "use strict";
 

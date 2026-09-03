@@ -303,7 +303,7 @@
       <div id="hero">
         <div class="hero-copy">
           <div id="hero-title">Currently reading</div>
-          <div id="hero-sub">Your five most recently opened discourses.</div>
+          <div id="hero-sub">Your five most recently opened reading items.</div>
         </div>
         <button id="remove-all-button" class="remove-all-button" type="button" hidden>
           Remove all
@@ -322,7 +322,7 @@
       hidden
     >
       <div class="modal-card">
-        <h2 id="remove-all-title" class="modal-title">Remove all saved discourses?</h2>
+        <h2 id="remove-all-title" class="modal-title">Remove all saved reading items?</h2>
         <p class="modal-copy">
           This will clear every saved reading position from this browser. This action cannot be undone.
         </p>
@@ -395,7 +395,7 @@
           removeAllButton.hidden = !items.length;
           if (!items.length) {
             list.innerHTML =
-              '<div class="reading-empty">Open a discourse to start building your reading list.</div>';
+              '<div class="reading-empty">Open a book, discourse, or story to start building your reading list.</div>';
             document.getElementById("status").textContent = "";
             closeRemoveAllModal();
             return;
@@ -430,7 +430,7 @@
             })
             .join("");
           document.getElementById("status").textContent =
-            items.length + " discourse" + (items.length === 1 ? "" : "s");
+            items.length + " reading item" + (items.length === 1 ? "" : "s");
         }
 
         list.addEventListener("click", function (event) {

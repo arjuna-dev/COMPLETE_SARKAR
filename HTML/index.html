@@ -237,13 +237,36 @@
         display: flex;
         align-items: center;
         height: 38px;
+        min-height: 38px;
         position: relative;
+        overflow: hidden;
         padding: 0 10px;
         background: var(--header-bg);
         border-bottom: 1px solid var(--border);
         gap: 4px;
         flex-shrink: 0;
-        transition: background-color 0.2s;
+        transition:
+          height 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+          min-height 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+          background-color 0.2s,
+          border-bottom-width 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+          border-color 0.24s;
+      }
+      #topbar > *:not(#reading-progress) {
+        transition:
+          opacity 0.16s ease-out,
+          transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #topbar.is-hidden {
+        height: 0;
+        min-height: 0;
+        border-bottom-width: 0;
+        border-bottom-color: transparent;
+      }
+      #topbar.is-hidden > *:not(#reading-progress) {
+        opacity: 0;
+        transform: translateY(-6px);
+        pointer-events: none;
       }
       #topbar-spacer {
         flex: 1;
@@ -529,6 +552,10 @@
       }
 
       @media (prefers-reduced-motion: reduce) {
+        #topbar,
+        #topbar > *:not(#reading-progress) {
+          transition: none;
+        }
         #reading-progress-fill {
           transition: none;
         }
@@ -1519,12 +1546,15 @@
         });
 
         // ── Reader controls ─────────────────────────────────────────
+        var topbar = document.getElementById("topbar");
         var READER_FONT_SCALE_KEY = "ee7-reader-font-scale";
         var READER_PROGRESS_KEY = "ee7-reading-progress-enabled";
         var READER_FONT_MIN = 0.85;
         var READER_FONT_MAX = 2.0;
         var READER_FONT_STEP = 0.1;
         var READER_MOBILE_BREAKPOINT = 700;
+        var TOPBAR_HIDE_THRESHOLD = 12;
+        var TOPBAR_REVEAL_THRESHOLD = 8;
         var readerControls = document.getElementById("reader-controls");
         var readerFontDecrease = document.getElementById(
           "reader-font-decrease",
@@ -1553,6 +1583,9 @@
         var readerProgressEnabled = true;
         var readingTime = document.getElementById("reading-time");
         var readingTimeValue = document.getElementById("reading-time-value");
+        var readerLastScrollTop = 0;
+        var readerScrollDirection = 0;
+        var readerScrollDirectionStart = 0;
 
         try {
           readerProgressEnabled =
@@ -1580,14 +1613,6 @@
           }
         }
 
-        function isDiscourseDocument(doc) {
-          return !!(
-            doc &&
-            doc.location &&
-            (doc.location.pathname || "").indexOf("/Discourses/") !== -1
-          );
-        }
-
         function isReaderDocument(doc) {
           if (!doc || !doc.location) return false;
           var path = doc.location.pathname || "";
@@ -1602,8 +1627,9 @@
 
         function updateReadingTime(doc) {
           if (!readingTime || !readingTimeValue) return;
-          if (!isReaderDocument(doc) || !doc.body) {
+          if (!isReaderDocument(doc) || !doc.body || !readerProgressEnabled) {
             readingTime.classList.remove("is-visible");
+            readingTime.setAttribute("aria-hidden", "true");
             readingTimeValue.textContent = "";
             return;
           }
@@ -1617,6 +1643,7 @@
             "aria-label",
             "Estimated reading time: " + minutes + " minutes",
           );
+          readingTime.setAttribute("aria-hidden", "false");
           readingTime.classList.add("is-visible");
         }
 
@@ -1659,6 +1686,7 @@
           var doc = activeReaderDocument();
           updateReaderProgressToggle(doc);
           updateReaderProgressVisibility(doc);
+          updateReadingTime(doc);
         }
 
         function readerUsesMobileViewport(doc) {
@@ -1700,7 +1728,7 @@
 
         function readerProgressMetrics(doc) {
           if (!doc || !doc.documentElement) {
-            return { fraction: 0, percent: 0, maxScroll: 0 };
+            return { fraction: 0, percent: 0, maxScroll: 0, scrollTop: 0 };
           }
           var win = doc.defaultView || frame.contentWindow;
           var root = doc.documentElement;
@@ -1727,7 +1755,63 @@
             fraction: fraction,
             percent: Math.round(fraction * 100),
             maxScroll: maxScroll,
+            scrollTop: scrollTop,
           };
+        }
+
+        function setTopbarHidden(hidden) {
+          if (!topbar) return;
+          topbar.classList.toggle("is-hidden", !!hidden);
+        }
+
+        if (topbar) {
+          topbar.addEventListener("focusin", function () {
+            setTopbarHidden(false);
+          });
+        }
+
+        function resetReaderTopbar(doc) {
+          var metrics = readerProgressMetrics(doc);
+          readerLastScrollTop = metrics.scrollTop;
+          readerScrollDirection = 0;
+          readerScrollDirectionStart = metrics.scrollTop;
+          setTopbarHidden(false);
+        }
+
+        function updateReaderTopbar(doc) {
+          if (!topbar || !isReaderDocument(doc)) {
+            setTopbarHidden(false);
+            return;
+          }
+
+          var scrollTop = readerProgressMetrics(doc).scrollTop;
+          if (scrollTop <= 0) {
+            resetReaderTopbar(doc);
+            return;
+          }
+
+          var delta = scrollTop - readerLastScrollTop;
+          if (!delta) return;
+
+          var direction = delta > 0 ? 1 : -1;
+          if (direction !== readerScrollDirection) {
+            readerScrollDirection = direction;
+            readerScrollDirectionStart = readerLastScrollTop;
+          }
+
+          if (
+            direction > 0 &&
+            scrollTop - readerScrollDirectionStart >= TOPBAR_HIDE_THRESHOLD
+          ) {
+            setTopbarHidden(true);
+          } else if (
+            direction < 0 &&
+            readerScrollDirectionStart - scrollTop >= TOPBAR_REVEAL_THRESHOLD
+          ) {
+            setTopbarHidden(false);
+          }
+
+          readerLastScrollTop = scrollTop;
         }
 
         function updateReaderProgress() {
@@ -1744,11 +1828,11 @@
           );
         }
 
-        var discourseSaveTimer = null;
-        var pendingDiscourseSaveDoc = null;
+        var readerSaveTimer = null;
+        var pendingReaderSaveDoc = null;
 
-        function saveDiscoursePosition(doc) {
-          if (!window.EE7ReadingState || !isDiscourseDocument(doc) || !doc.body) {
+        function saveReaderPosition(doc) {
+          if (!window.EE7ReadingState || !isReaderDocument(doc) || !doc.body) {
             return;
           }
           var win = doc.defaultView || frame.contentWindow;
@@ -1776,34 +1860,34 @@
           updateCurrentlyReadingCount();
         }
 
-        function scheduleSaveDiscoursePosition(doc) {
-          pendingDiscourseSaveDoc = doc;
-          if (discourseSaveTimer) return;
-          discourseSaveTimer = window.setTimeout(function () {
-            discourseSaveTimer = null;
-            var pending = pendingDiscourseSaveDoc;
-            pendingDiscourseSaveDoc = null;
-            saveDiscoursePosition(pending);
+        function scheduleSaveReaderPosition(doc) {
+          pendingReaderSaveDoc = doc;
+          if (readerSaveTimer) return;
+          readerSaveTimer = window.setTimeout(function () {
+            readerSaveTimer = null;
+            var pending = pendingReaderSaveDoc;
+            pendingReaderSaveDoc = null;
+            saveReaderPosition(pending);
           }, 160);
         }
 
-        function flushSaveDiscoursePosition(doc) {
-          if (discourseSaveTimer) {
-            window.clearTimeout(discourseSaveTimer);
-            discourseSaveTimer = null;
+        function flushSaveReaderPosition(doc) {
+          if (readerSaveTimer) {
+            window.clearTimeout(readerSaveTimer);
+            readerSaveTimer = null;
           }
-          pendingDiscourseSaveDoc = null;
-          saveDiscoursePosition(doc || activeReaderDocument());
+          pendingReaderSaveDoc = null;
+          saveReaderPosition(doc || activeReaderDocument());
         }
 
-        function restoreDiscoursePosition(doc) {
-          if (!window.EE7ReadingState || !isDiscourseDocument(doc) || !doc.body) {
+        function restoreReaderPosition(doc) {
+          if (!window.EE7ReadingState || !isReaderDocument(doc) || !doc.body) {
             return;
           }
           var href = window.EE7ReadingState.normalizeHref(doc.location.href);
           var entry = window.EE7ReadingState.find(href);
           if (!entry) {
-            saveDiscoursePosition(doc);
+            saveReaderPosition(doc);
             return;
           }
           var title = readerTitle(doc, doc.location.pathname || "");
@@ -1822,8 +1906,9 @@
               ? entry.progress * metrics.maxScroll
               : Math.min(entry.scrollTop, metrics.maxScroll);
             win.scrollTo(0, Math.max(0, target));
+            resetReaderTopbar(doc);
             updateReaderProgress();
-            saveDiscoursePosition(doc);
+            saveReaderPosition(doc);
           };
           window.requestAnimationFrame(function () {
             window.requestAnimationFrame(restore);
@@ -1859,6 +1944,10 @@
           readerTypographyDoc = null;
           readerBaseTypography = null;
           readerTypographyMobileMode = null;
+          readerLastScrollTop = 0;
+          readerScrollDirection = 0;
+          readerScrollDirectionStart = 0;
+          setTopbarHidden(false);
           readingProgress.classList.remove("is-visible");
           readingProgress.setAttribute("aria-hidden", "true");
           readingProgressFill.style.width = "0%";
@@ -1880,9 +1969,8 @@
           readerProgressWindow = doc.defaultView || frame.contentWindow;
           readerProgressScrollHandler = function () {
             updateReaderProgress();
-            if (isDiscourseDocument(doc)) {
-              scheduleSaveDiscoursePosition(doc);
-            }
+            updateReaderTopbar(doc);
+            scheduleSaveReaderPosition(doc);
           };
           readerProgressResizeHandler = function () {
             var mobileMode = readerUsesMobileViewport(doc);
@@ -1896,6 +1984,7 @@
           };
           captureReaderTypography(doc);
           applyReaderFontScale(doc);
+          resetReaderTopbar(doc);
           updateReaderProgressVisibility(doc);
           updateReaderControls(doc);
           if (readerProgressScrollHandler) {
@@ -1909,9 +1998,7 @@
             "resize",
             readerProgressResizeHandler,
           );
-          if (isDiscourseDocument(doc)) {
-            restoreDiscoursePosition(doc);
-          }
+          restoreReaderPosition(doc);
           updateReaderProgress();
         }
 
@@ -2222,7 +2309,7 @@
         function navigateFrame(href, options) {
           var targetUrl = resolveFrameUrl(href);
           if (!targetUrl) return;
-          flushSaveDiscoursePosition(activeReaderDocument());
+          flushSaveReaderPosition(activeReaderDocument());
           var targetHref = targetUrl.href;
           var fromHistory = options && options.fromHistory;
           if (!fromHistory) syncAddressBar(targetHref, false);
@@ -2254,7 +2341,7 @@
 
         window.addEventListener("popstate", loadFrameFromAddress);
         window.addEventListener("pagehide", function () {
-          flushSaveDiscoursePosition(activeReaderDocument());
+          flushSaveReaderPosition(activeReaderDocument());
         });
 
         // Fade in every time the iframe loads new content
