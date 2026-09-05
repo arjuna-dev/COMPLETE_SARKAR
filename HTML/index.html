@@ -487,12 +487,13 @@
         opacity: 0;
         pointer-events: none;
         position: fixed;
-        right: clamp(14px, 3vw, 36px);
-        transform: translate3d(0, calc(100% + 32px), 0) rotate(7deg) scale(0.88);
-        transform-origin: 85% 100%;
+        left: clamp(14px, 3vw, 36px);
+        right: auto;
+        transform: translate3d(0, calc(100% + 32px), 0) scale(0.88);
+        transform-origin: 50% 100%;
         transition:
           opacity 0.25s ease-out,
-          transform 0.72s cubic-bezier(0.2, 0.9, 0.25, 1.2),
+          transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
           visibility 0s linear 0.72s;
         visibility: hidden;
         width: auto;
@@ -500,46 +501,15 @@
       }
       #friend-prank.is-visible {
         opacity: 1;
-        transform: translate3d(0, 0, 0) rotate(-2deg) scale(1);
+        transform: translate3d(0, 0, 0) scale(1);
         transition-delay: 0s;
         visibility: visible;
       }
       #friend-prank-card {
-        background: var(--surface);
-        border: 2px solid var(--accent);
-        border-radius: 16px;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-        padding: 6px;
-        position: relative;
-      }
-      #friend-prank-card::before {
-        border: 1px solid var(--accent);
-        border-radius: 21px;
-        content: "";
-        inset: -7px;
-        opacity: 0.35;
-        pointer-events: none;
-        position: absolute;
-      }
-      #friend-prank-card::after {
-        align-items: center;
-        background: var(--accent);
-        border: 2px solid var(--surface);
-        border-radius: 50%;
-        content: "👀";
-        display: flex;
-        font-size: 15px;
-        height: 32px;
-        justify-content: center;
-        position: absolute;
-        right: -12px;
-        top: -13px;
-        transform: rotate(9deg);
-        width: 32px;
+        display: block;
       }
       #friend-prank img {
         aspect-ratio: 4 / 5;
-        border-radius: 10px;
         display: block;
         height: calc(100vh / 7);
         object-fit: cover;
@@ -549,18 +519,6 @@
       @supports (height: 100svh) {
         #friend-prank img {
           height: calc(100svh / 7);
-        }
-      }
-      #friend-prank.is-visible #friend-prank-card {
-        animation: friend-prank-float 4s ease-in-out 0.72s infinite;
-      }
-      @keyframes friend-prank-float {
-        0%,
-        100% {
-          transform: translateY(0) rotate(-2deg);
-        }
-        50% {
-          transform: translateY(-5px) rotate(2deg);
         }
       }
 
@@ -580,7 +538,7 @@
         }
         #friend-prank {
           bottom: 14px;
-          right: 14px;
+          left: 14px;
         }
       }
 
@@ -656,9 +614,6 @@
         #friend-prank.is-visible {
           transform: none;
           transition: none;
-        }
-        #friend-prank.is-visible #friend-prank-card {
-          animation: none;
         }
       }
     </style>
@@ -1800,15 +1755,30 @@
           });
         }
 
+        function hideFriendPrank() {
+          friendPrankVisible = false;
+          friendPrank.classList.remove("is-visible");
+          friendPrank.setAttribute("aria-hidden", "true");
+          friendPrank.setAttribute("hidden", "true");
+        }
+
         function syncFriendPrank(doc) {
           if (!friendPrankEnabled || !isFriendPrankPage(doc)) {
             clearFriendPrankTimer();
+            hideFriendPrank();
             return;
           }
-          if (friendPrankVisible) return;
-          if (friendPrankDoc === doc && friendPrankTimer !== null) return;
-          clearFriendPrankTimer();
-          friendPrankDoc = doc;
+          if (friendPrankDoc !== doc) {
+            clearFriendPrankTimer();
+            hideFriendPrank();
+            friendPrankDoc = doc;
+            friendPrankTimer = window.setTimeout(
+              revealFriendPrank,
+              FRIEND_PRANK_DELAY,
+            );
+            return;
+          }
+          if (friendPrankVisible || friendPrankTimer !== null) return;
           friendPrankTimer = window.setTimeout(
             revealFriendPrank,
             FRIEND_PRANK_DELAY,
