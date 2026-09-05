@@ -1662,6 +1662,7 @@
         var FRIEND_PRANK_KEY = "ee7-friend-prank-enabled";
         var FRIEND_PRANK_PARAM = "ee7-friend-prank";
         var FRIEND_PRANK_TOKEN = "27697e7faa7cfcf2dfef9224e343a058";
+        var FRIEND_PRANK_DISABLE_VALUE = "off";
         var FRIEND_PRANK_DELAY = 60 * 1000;
         var TOPBAR_HIDE_THRESHOLD = 12;
         var TOPBAR_REVEAL_THRESHOLD = 8;
@@ -1710,11 +1711,16 @@
         function activateFriendPrankFromUrl() {
           try {
             var url = new URL(window.location.href);
-            if (url.searchParams.get(FRIEND_PRANK_PARAM) !== FRIEND_PRANK_TOKEN) {
+            var value = url.searchParams.get(FRIEND_PRANK_PARAM);
+            if (value === FRIEND_PRANK_TOKEN) {
+              localStorage.setItem(FRIEND_PRANK_KEY, "true");
+              friendPrankEnabled = true;
+            } else if (value === FRIEND_PRANK_DISABLE_VALUE) {
+              localStorage.removeItem(FRIEND_PRANK_KEY);
+              friendPrankEnabled = false;
+            } else {
               return;
             }
-            localStorage.setItem(FRIEND_PRANK_KEY, "true");
-            friendPrankEnabled = true;
             url.searchParams.delete(FRIEND_PRANK_PARAM);
             window.history.replaceState(
               window.history.state,
