@@ -263,6 +263,11 @@
         border-bottom-width: 0;
         border-bottom-color: transparent;
       }
+      #topbar.is-hidden.has-visible-progress {
+        height: 2px;
+        min-height: 2px;
+        padding: 0;
+      }
       #topbar.is-hidden > *:not(#reading-progress) {
         opacity: 0;
         transform: translateY(-6px);
@@ -1673,6 +1678,7 @@
         function updateReaderProgressVisibility(doc) {
           var visible = isReaderDocument(doc) && readerProgressEnabled;
           readingProgress.classList.toggle("is-visible", visible);
+          topbar.classList.toggle("has-visible-progress", visible);
           readingProgress.setAttribute("aria-hidden", visible ? "false" : "true");
         }
 
@@ -1953,6 +1959,7 @@
           readerScrollDirection = 0;
           readerScrollDirectionStart = 0;
           setTopbarHidden(false);
+          topbar.classList.remove("has-visible-progress");
           readingProgress.classList.remove("is-visible");
           readingProgress.setAttribute("aria-hidden", "true");
           readingProgressFill.style.width = "0%";
