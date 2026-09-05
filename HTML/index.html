@@ -480,6 +480,90 @@
         font-weight: 700;
       }
 
+      /* Private reader prank, enabled by a secret activation link */
+      #friend-prank {
+        bottom: 16px;
+        display: block;
+        opacity: 0;
+        pointer-events: none;
+        position: fixed;
+        right: clamp(14px, 3vw, 36px);
+        transform: translate3d(0, calc(100% + 32px), 0) rotate(7deg) scale(0.88);
+        transform-origin: 85% 100%;
+        transition:
+          opacity 0.25s ease-out,
+          transform 0.72s cubic-bezier(0.2, 0.9, 0.25, 1.2),
+          visibility 0s linear 0.72s;
+        visibility: hidden;
+        width: auto;
+        z-index: 110;
+      }
+      #friend-prank.is-visible {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) rotate(-2deg) scale(1);
+        transition-delay: 0s;
+        visibility: visible;
+      }
+      #friend-prank-card {
+        background: var(--surface);
+        border: 2px solid var(--accent);
+        border-radius: 16px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+        padding: 6px;
+        position: relative;
+      }
+      #friend-prank-card::before {
+        border: 1px solid var(--accent);
+        border-radius: 21px;
+        content: "";
+        inset: -7px;
+        opacity: 0.35;
+        pointer-events: none;
+        position: absolute;
+      }
+      #friend-prank-card::after {
+        align-items: center;
+        background: var(--accent);
+        border: 2px solid var(--surface);
+        border-radius: 50%;
+        content: "👀";
+        display: flex;
+        font-size: 15px;
+        height: 32px;
+        justify-content: center;
+        position: absolute;
+        right: -12px;
+        top: -13px;
+        transform: rotate(9deg);
+        width: 32px;
+      }
+      #friend-prank img {
+        aspect-ratio: 4 / 5;
+        border-radius: 10px;
+        display: block;
+        height: calc(100vh / 7);
+        object-fit: cover;
+        object-position: center 42%;
+        width: auto;
+      }
+      @supports (height: 100svh) {
+        #friend-prank img {
+          height: calc(100svh / 7);
+        }
+      }
+      #friend-prank.is-visible #friend-prank-card {
+        animation: friend-prank-float 4s ease-in-out 0.72s infinite;
+      }
+      @keyframes friend-prank-float {
+        0%,
+        100% {
+          transform: translateY(0) rotate(-2deg);
+        }
+        50% {
+          transform: translateY(-5px) rotate(2deg);
+        }
+      }
+
       @media (max-width: 700px) {
         .bar-btn-label {
           display: none;
@@ -493,6 +577,10 @@
         #toast-region {
           bottom: 12px;
           right: 12px;
+        }
+        #friend-prank {
+          bottom: 14px;
+          right: 14px;
         }
       }
 
@@ -563,6 +651,14 @@
         }
         #reading-progress-fill {
           transition: none;
+        }
+        #friend-prank,
+        #friend-prank.is-visible {
+          transform: none;
+          transition: none;
+        }
+        #friend-prank.is-visible #friend-prank-card {
+          animation: none;
         }
       }
     </style>
@@ -1305,6 +1401,11 @@
           frameborder="0"
           title="Content"
         ></iframe>
+        <div id="friend-prank" hidden aria-hidden="true">
+          <div id="friend-prank-card">
+            <img src="Images/friend-prank.jpg" alt="Surprise face" />
+          </div>
+        </div>
       </div>
       <!-- /main -->
     </div>
@@ -1558,6 +1659,10 @@
         var READER_FONT_MAX = 2.0;
         var READER_FONT_STEP = 0.1;
         var READER_MOBILE_BREAKPOINT = 700;
+        var FRIEND_PRANK_KEY = "ee7-friend-prank-enabled";
+        var FRIEND_PRANK_PARAM = "ee7-friend-prank";
+        var FRIEND_PRANK_TOKEN = "27697e7faa7cfcf2dfef9224e343a058";
+        var FRIEND_PRANK_DELAY = 60 * 1000;
         var TOPBAR_HIDE_THRESHOLD = 12;
         var TOPBAR_REVEAL_THRESHOLD = 8;
         var readerControls = document.getElementById("reader-controls");
@@ -1592,6 +1697,34 @@
         var readerLastScrollTop = 0;
         var readerScrollDirection = 0;
         var readerScrollDirectionStart = 0;
+        var friendPrank = document.getElementById("friend-prank");
+        var friendPrankTimer = null;
+        var friendPrankDoc = null;
+        var friendPrankEnabled = false;
+        var friendPrankVisible = false;
+
+        try {
+          friendPrankEnabled = localStorage.getItem(FRIEND_PRANK_KEY) === "true";
+        } catch (e) {}
+
+        function activateFriendPrankFromUrl() {
+          try {
+            var url = new URL(window.location.href);
+            if (url.searchParams.get(FRIEND_PRANK_PARAM) !== FRIEND_PRANK_TOKEN) {
+              return;
+            }
+            localStorage.setItem(FRIEND_PRANK_KEY, "true");
+            friendPrankEnabled = true;
+            url.searchParams.delete(FRIEND_PRANK_PARAM);
+            window.history.replaceState(
+              window.history.state,
+              "",
+              url.pathname + url.search + url.hash,
+            );
+          } catch (e) {}
+        }
+
+        activateFriendPrankFromUrl();
 
         try {
           readerProgressEnabled =
@@ -1628,6 +1761,51 @@
             path.indexOf("/Stories/") !== -1 ||
             path.indexOf("/Other-Spiritual-Books/") !== -1 ||
             path.indexOf("/Acharya-Philosophy/") !== -1
+          );
+        }
+
+        function isFriendPrankPage(doc) {
+          if (!isReaderDocument(doc)) return false;
+          return (doc.location.pathname || "").indexOf("/Stories/") === -1;
+        }
+
+        function clearFriendPrankTimer() {
+          if (friendPrankTimer !== null) {
+            window.clearTimeout(friendPrankTimer);
+            friendPrankTimer = null;
+          }
+          friendPrankDoc = null;
+        }
+
+        function revealFriendPrank() {
+          friendPrankTimer = null;
+          if (
+            !friendPrankEnabled ||
+            friendPrankVisible ||
+            !isFriendPrankPage(friendPrankDoc)
+          ) {
+            return;
+          }
+          friendPrankVisible = true;
+          friendPrank.removeAttribute("hidden");
+          friendPrank.setAttribute("aria-hidden", "false");
+          window.requestAnimationFrame(function () {
+            friendPrank.classList.add("is-visible");
+          });
+        }
+
+        function syncFriendPrank(doc) {
+          if (!friendPrankEnabled || !isFriendPrankPage(doc)) {
+            clearFriendPrankTimer();
+            return;
+          }
+          if (friendPrankVisible) return;
+          if (friendPrankDoc === doc && friendPrankTimer !== null) return;
+          clearFriendPrankTimer();
+          friendPrankDoc = doc;
+          friendPrankTimer = window.setTimeout(
+            revealFriendPrank,
+            FRIEND_PRANK_DELAY,
           );
         }
 
@@ -2027,6 +2205,7 @@
 
         function syncReaderUi() {
           var doc = activeReaderDocument();
+          syncFriendPrank(doc);
           updateReaderProgressToggle(doc);
           updateReadingTime(doc);
           if (!isReaderDocument(doc)) {
