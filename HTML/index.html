@@ -245,32 +245,15 @@
         border-bottom: 1px solid var(--border);
         gap: 4px;
         flex-shrink: 0;
+        --topbar-content-progress: 1;
         transition:
-          height 0.24s cubic-bezier(0.4, 0, 0.2, 1),
-          min-height 0.24s cubic-bezier(0.4, 0, 0.2, 1),
           background-color 0.2s,
-          border-bottom-width 0.24s cubic-bezier(0.4, 0, 0.2, 1),
           border-color 0.24s;
       }
       #topbar > *:not(#reading-progress) {
-        transition:
-          opacity 0.16s ease-out,
-          transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+        opacity: var(--topbar-content-progress);
       }
-      #topbar.is-hidden {
-        height: 0;
-        min-height: 0;
-        border-bottom-width: 0;
-        border-bottom-color: transparent;
-      }
-      #topbar.is-hidden.has-visible-progress {
-        height: 2px;
-        min-height: 2px;
-        padding: 0;
-      }
-      #topbar.is-hidden > *:not(#reading-progress) {
-        opacity: 0;
-        transform: translateY(-6px);
+      #topbar.is-collapsed > *:not(#reading-progress) {
         pointer-events: none;
       }
       #topbar-spacer {
@@ -1619,8 +1602,8 @@
         var FRIEND_PRANK_TOKEN = "27697e7faa7cfcf2dfef9224e343a058";
         var FRIEND_PRANK_DISABLE_VALUE = "off";
         var FRIEND_PRANK_DELAY = 60 * 1000;
-        var TOPBAR_HIDE_THRESHOLD = 12;
-        var TOPBAR_REVEAL_THRESHOLD = 8;
+        var TOPBAR_FULL_HEIGHT = 38;
+        var TOPBAR_PROGRESS_HEIGHT = 2;
         var readerControls = document.getElementById("reader-controls");
         var readerFontDecrease = document.getElementById(
           "reader-font-decrease",
@@ -1651,8 +1634,7 @@
         var readingTime = document.getElementById("reading-time");
         var readingTimeValue = document.getElementById("reading-time-value");
         var readerLastScrollTop = 0;
-        var readerScrollDirection = 0;
-        var readerScrollDirectionStart = 0;
+        var readerTopbarHeight = TOPBAR_FULL_HEIGHT;
         var friendPrank = document.getElementById("friend-prank");
         var friendPrankTimer = null;
         var friendPrankDoc = null;
@@ -1831,9 +1813,14 @@
 
         function updateReaderProgressVisibility(doc) {
           var visible = isReaderDocument(doc) && readerProgressEnabled;
+          var previousMinimumHeight = topbarMinimumHeight();
           readingProgress.classList.toggle("is-visible", visible);
           topbar.classList.toggle("has-visible-progress", visible);
           readingProgress.setAttribute("aria-hidden", visible ? "false" : "true");
+          if (readerTopbarHeight <= previousMinimumHeight) {
+            readerTopbarHeight = visible ? TOPBAR_PROGRESS_HEIGHT : 0;
+          }
+          setTopbarHeight(readerTopbarHeight);
         }
 
         function setReaderProgressEnabled(enabled) {
@@ -1920,9 +1907,38 @@
           };
         }
 
-        function setTopbarHidden(hidden) {
+        function topbarMinimumHeight() {
+          return topbar && topbar.classList.contains("has-visible-progress")
+            ? TOPBAR_PROGRESS_HEIGHT
+            : 0;
+        }
+
+        function setTopbarHeight(height) {
           if (!topbar) return;
-          topbar.classList.toggle("is-hidden", !!hidden);
+          var minimumHeight = topbarMinimumHeight();
+          var nextHeight = Math.min(
+            TOPBAR_FULL_HEIGHT,
+            Math.max(minimumHeight, height),
+          );
+          var borderWidth =
+            nextHeight > minimumHeight ? Math.min(1, nextHeight) : 0;
+          var contentProgress =
+            nextHeight > minimumHeight ? nextHeight / TOPBAR_FULL_HEIGHT : 0;
+
+          readerTopbarHeight = nextHeight;
+          topbar.style.height = nextHeight + "px";
+          topbar.style.minHeight = nextHeight + "px";
+          topbar.style.borderBottomWidth = borderWidth + "px";
+          topbar.style.borderBottomColor = borderWidth ? "" : "transparent";
+          topbar.style.setProperty(
+            "--topbar-content-progress",
+            String(contentProgress),
+          );
+          topbar.classList.toggle("is-collapsed", nextHeight <= minimumHeight);
+        }
+
+        function setTopbarHidden(hidden) {
+          setTopbarHeight(hidden ? topbarMinimumHeight() : TOPBAR_FULL_HEIGHT);
         }
 
         if (topbar) {
@@ -1934,9 +1950,7 @@
         function resetReaderTopbar(doc) {
           var metrics = readerProgressMetrics(doc);
           readerLastScrollTop = metrics.scrollTop;
-          readerScrollDirection = 0;
-          readerScrollDirectionStart = metrics.scrollTop;
-          setTopbarHidden(false);
+          setTopbarHeight(TOPBAR_FULL_HEIGHT);
         }
 
         function updateReaderTopbar(doc) {
@@ -1954,24 +1968,8 @@
           var delta = scrollTop - readerLastScrollTop;
           if (!delta) return;
 
-          var direction = delta > 0 ? 1 : -1;
-          if (direction !== readerScrollDirection) {
-            readerScrollDirection = direction;
-            readerScrollDirectionStart = readerLastScrollTop;
-          }
-
-          if (
-            direction > 0 &&
-            scrollTop - readerScrollDirectionStart >= TOPBAR_HIDE_THRESHOLD
-          ) {
-            setTopbarHidden(true);
-          } else if (
-            direction < 0 &&
-            readerScrollDirectionStart - scrollTop >= TOPBAR_REVEAL_THRESHOLD
-          ) {
-            setTopbarHidden(false);
-          }
-
+          // Keep the bar movement 1:1 with the reader's scroll distance.
+          setTopbarHeight(readerTopbarHeight - delta);
           readerLastScrollTop = scrollTop;
         }
 
@@ -2110,8 +2108,7 @@
           readerBaseTypography = null;
           readerTypographyMobileMode = null;
           readerLastScrollTop = 0;
-          readerScrollDirection = 0;
-          readerScrollDirectionStart = 0;
+          readerTopbarHeight = TOPBAR_FULL_HEIGHT;
           setTopbarHidden(false);
           topbar.classList.remove("has-visible-progress");
           readingProgress.classList.remove("is-visible");
