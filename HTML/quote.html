@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shared quote - EE 7+</title>
+    <script src="Layout/theme.js"></script>
+    <script src="Layout/quotes.js"></script>
+    <script src="Layout/vendor/pretext.js"></script>
+    <script src="Layout/quote-masks.js"></script>
+    <script src="Layout/quote-flow.js"></script>
+    <style>
+      :root {
+        --page-paper: #f5f1e8;
+        --page-ink: #242321;
+        --page-muted: rgba(36, 35, 33, 0.66);
+        --page-border: rgba(36, 35, 33, 0.22);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        background: #1d1a18;
+        color: var(--page-ink);
+        font-family: Tahoma, "Arial Unicode MS", Geneva, sans-serif;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      #quote-app {
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-height: 100svh;
+        padding: clamp(14px, 3vw, 34px) 16px 26px;
+      }
+
+      #quote-stage {
+        align-items: center;
+        display: flex;
+        flex: 1;
+        justify-content: center;
+        width: min(100%, 760px);
+      }
+
+      #quote-sheet {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #25201f;
+        --quote-muted: rgba(37, 32, 31, 0.68);
+        --quote-left: 8%;
+        --quote-top: 10%;
+        --quote-width: 58%;
+        --quote-size: clamp(1.65rem, 4vw, 3.45rem);
+        --quote-leading: 1.08;
+        --quote-align: left;
+        --quote-rotate: 0deg;
+        aspect-ratio: 3 / 4;
+        background-color: var(--page-paper);
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+        border: 1px solid rgba(250, 250, 247, 0.32);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+        color: var(--quote-ink);
+        max-height: min(88svh, 960px);
+        max-width: 100%;
+        overflow: hidden;
+        position: relative;
+        width: min(100%, 690px);
+      }
+
+      #quote-sheet::before {
+        background: rgba(250, 250, 247, 0.06);
+        content: "";
+        inset: 0;
+        pointer-events: none;
+        position: absolute;
+        z-index: 0;
+      }
+
+      #quote-sheet.bg-01 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-left: 7%;
+        --quote-top: 64%;
+        --quote-width: 54%;
+        --quote-size: clamp(1.55rem, 3.7vw, 3.2rem);
+        background-image: url("Images/quote-bg-01.webp");
+      }
+
+      #quote-sheet.bg-02 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #202329;
+        --quote-left: 56%;
+        --quote-top: 12%;
+        --quote-width: 35%;
+        --quote-size: clamp(1.45rem, 3.4vw, 3rem);
+        --quote-leading: 1.14;
+        background-image: url("Images/quote-bg-02.webp");
+      }
+
+      #quote-sheet.bg-03 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #392938;
+        --quote-left: 54%;
+        --quote-top: 28%;
+        --quote-width: 36%;
+        --quote-size: clamp(1.45rem, 3.2vw, 2.95rem);
+        --quote-leading: 1.12;
+        background-image: url("Images/quote-bg-03.webp");
+      }
+
+      #quote-sheet.bg-04 {
+        --quote-display: "Arial Narrow", "Trebuchet MS", sans-serif;
+        --quote-ink: #293b7c;
+        --quote-left: 7%;
+        --quote-top: 20%;
+        --quote-width: 38%;
+        --quote-size: clamp(1.45rem, 3.4vw, 3rem);
+        --quote-leading: 1.08;
+        background-image: url("Images/quote-bg-04.webp");
+      }
+
+      #quote-sheet.bg-05 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #24352e;
+        --quote-left: 8%;
+        --quote-top: 10%;
+        --quote-width: 48%;
+        --quote-size: clamp(1.55rem, 3.7vw, 3.15rem);
+        background-image: url("Images/quote-bg-05.webp");
+      }
+
+      #quote-sheet.bg-06 {
+        --quote-display: "Courier New", monospace;
+        --quote-ink: #252e52;
+        --quote-left: 57%;
+        --quote-top: 62%;
+        --quote-width: 34%;
+        --quote-size: clamp(1.15rem, 2.7vw, 2.35rem);
+        --quote-leading: 1.22;
+        background-image: url("Images/quote-bg-06.webp");
+      }
+
+      #quote-sheet.bg-07 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #39231f;
+        --quote-left: 56%;
+        --quote-top: 26%;
+        --quote-width: 35%;
+        --quote-size: clamp(1.45rem, 3.2vw, 2.9rem);
+        background-image: url("Images/quote-bg-07.webp");
+      }
+
+      #quote-sheet.bg-08 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #284335;
+        --quote-left: 8%;
+        --quote-top: 11%;
+        --quote-width: 41%;
+        --quote-size: clamp(1.4rem, 3.2vw, 2.85rem);
+        --quote-leading: 1.16;
+        background-image: url("Images/quote-bg-08.webp");
+      }
+
+      #quote-sheet.bg-09 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #1e5069;
+        --quote-left: 8%;
+        --quote-top: 16%;
+        --quote-width: 45%;
+        --quote-size: clamp(1.5rem, 3.55vw, 3.1rem);
+        background-image: url("Images/quote-bg-09.webp");
+      }
+
+      #quote-sheet.bg-10 {
+        --quote-display: "Courier New", monospace;
+        --quote-ink: #31283a;
+        --quote-left: 53%;
+        --quote-top: 60%;
+        --quote-width: 38%;
+        --quote-size: clamp(1.25rem, 3vw, 2.55rem);
+        --quote-leading: 1.2;
+        background-image: url("Images/quote-bg-10.webp");
+      }
+
+      #quote-sheet.bg-11 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #2f3d31;
+        --quote-left: 57%;
+        --quote-top: 42%;
+        --quote-width: 34%;
+        --quote-size: clamp(1.45rem, 3.25vw, 2.9rem);
+        background-image: url("Images/quote-bg-11.webp");
+      }
+
+      #quote-sheet.bg-12 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #26366e;
+        --quote-left: 8%;
+        --quote-top: 12%;
+        --quote-width: 39%;
+        --quote-size: clamp(1.35rem, 3.1vw, 2.8rem);
+        --quote-leading: 1.14;
+        background-image: url("Images/quote-bg-12.webp");
+      }
+
+      #quote-sheet.bg-13 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #292d4f;
+        --quote-left: 55%;
+        --quote-top: 61%;
+        --quote-width: 35%;
+        --quote-size: clamp(1.4rem, 3.2vw, 2.85rem);
+        background-image: url("Images/quote-bg-13.webp");
+      }
+
+      #quote-sheet.bg-14 {
+        --quote-display: "Arial Narrow", "Trebuchet MS", sans-serif;
+        --quote-ink: #294338;
+        --quote-left: 57%;
+        --quote-top: 18%;
+        --quote-width: 33%;
+        --quote-size: clamp(1.35rem, 3vw, 2.75rem);
+        --quote-leading: 1.16;
+        background-image: url("Images/quote-bg-14.webp");
+      }
+
+      #quote-sheet.bg-15 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #4c392e;
+        --quote-left: 55%;
+        --quote-top: 12%;
+        --quote-width: 37%;
+        --quote-size: clamp(1.45rem, 3.25vw, 2.9rem);
+        background-image: url("Images/quote-bg-15.webp");
+      }
+
+      #quote-sheet.bg-16 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #284335;
+        --quote-left: 8%;
+        --quote-top: 12%;
+        --quote-width: 44%;
+        --quote-size: clamp(1.45rem, 3.35vw, 3rem);
+        --quote-leading: 1.1;
+        background-image: url("Images/quote-bg-16.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-17 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #30223e;
+        --quote-left: 57%;
+        --quote-top: 13%;
+        --quote-width: 34%;
+        --quote-size: clamp(1.35rem, 3vw, 2.75rem);
+        --quote-leading: 1.16;
+        background-image: url("Images/quote-bg-17.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-18 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #352c27;
+        --quote-left: 8%;
+        --quote-top: 52%;
+        --quote-width: 42%;
+        --quote-size: clamp(1.35rem, 3.1vw, 2.8rem);
+        --quote-leading: 1.12;
+        background-image: url("Images/quote-bg-18.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-19 {
+        --quote-display: "Arial Narrow", "Trebuchet MS", sans-serif;
+        --quote-ink: #293b7c;
+        --quote-left: 7%;
+        --quote-top: 11%;
+        --quote-width: 42%;
+        --quote-size: clamp(1.35rem, 3.1vw, 2.8rem);
+        --quote-leading: 1.12;
+        background-image: url("Images/quote-bg-19.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-20 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #24352e;
+        --quote-left: 8%;
+        --quote-top: 10%;
+        --quote-width: 41%;
+        --quote-size: clamp(1.4rem, 3.2vw, 2.9rem);
+        --quote-leading: 1.08;
+        background-image: url("Images/quote-bg-20.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-21 {
+        --quote-display: "Courier New", monospace;
+        --quote-ink: #33243c;
+        --quote-left: 7%;
+        --quote-top: 11%;
+        --quote-width: 37%;
+        --quote-size: clamp(1.15rem, 2.65vw, 2.35rem);
+        --quote-leading: 1.2;
+        background-image: url("Images/quote-bg-21.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-22 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #39231f;
+        --quote-left: 8%;
+        --quote-top: 12%;
+        --quote-width: 39%;
+        --quote-size: clamp(1.4rem, 3.1vw, 2.8rem);
+        --quote-leading: 1.1;
+        background-image: url("Images/quote-bg-22.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-23 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #4d2d26;
+        --quote-left: 57%;
+        --quote-top: 12%;
+        --quote-width: 34%;
+        --quote-size: clamp(1.35rem, 3vw, 2.7rem);
+        --quote-leading: 1.14;
+        background-image: url("Images/quote-bg-23.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-24 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #1e5069;
+        --quote-left: 55%;
+        --quote-top: 12%;
+        --quote-width: 36%;
+        --quote-size: clamp(1.4rem, 3.2vw, 2.9rem);
+        --quote-leading: 1.1;
+        background-image: url("Images/quote-bg-24.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-25 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #46304b;
+        --quote-left: 8%;
+        --quote-top: 13%;
+        --quote-width: 42%;
+        --quote-size: clamp(1.3rem, 3vw, 2.7rem);
+        --quote-leading: 1.14;
+        background-image: url("Images/quote-bg-25.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-26 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #2f3d31;
+        --quote-left: 8%;
+        --quote-top: 12%;
+        --quote-width: 39%;
+        --quote-size: clamp(1.35rem, 3vw, 2.75rem);
+        --quote-leading: 1.12;
+        background-image: url("Images/quote-bg-26.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-27 {
+        --quote-display: "Arial Narrow", "Trebuchet MS", sans-serif;
+        --quote-ink: #293b7c;
+        --quote-left: 7%;
+        --quote-top: 12%;
+        --quote-width: 40%;
+        --quote-size: clamp(1.35rem, 3vw, 2.7rem);
+        --quote-leading: 1.16;
+        background-image: url("Images/quote-bg-27.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-28 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #2e2925;
+        --quote-left: 8%;
+        --quote-top: 11%;
+        --quote-width: 42%;
+        --quote-size: clamp(1.35rem, 3vw, 2.75rem);
+        --quote-leading: 1.1;
+        background-image: url("Images/quote-bg-28.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-29 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #f6e9bd;
+        --quote-left: 8%;
+        --quote-top: 12%;
+        --quote-width: 43%;
+        --quote-size: clamp(1.3rem, 3vw, 2.7rem);
+        --quote-leading: 1.14;
+        background-color: #16120e;
+        background-image: url("Images/quote-bg-29.png");
+        background-position: center;
+        background-size: cover;
+      }
+
+      #quote-content {
+        inset: 0;
+        position: absolute;
+        z-index: 1;
+      }
+
+      #quote-copy { color: var(--quote-ink); }
+      #quote-toolbar {
+        align-items: center;
+        color: rgba(250, 250, 247, 0.76);
+        display: flex;
+        flex-wrap: wrap;
+        font: 8pt/1.2 Tahoma, sans-serif;
+        gap: 8px;
+        justify-content: center;
+        max-width: 760px;
+      }
+
+      .quote-tool,
+      #quote-status {
+        border: 1px solid rgba(250, 250, 247, 0.22);
+        border-radius: 5px;
+        padding: 7px 10px;
+      }
+
+      .quote-tool {
+        background: rgba(0, 0, 0, 0.15);
+        color: rgba(250, 250, 247, 0.9);
+        cursor: pointer;
+        text-decoration: none;
+      }
+
+      .quote-tool:hover,
+      .quote-tool:focus-visible {
+        background: rgba(250, 250, 247, 0.14);
+        text-decoration: none;
+      }
+
+      #quote-status {
+        border-color: transparent;
+        color: rgba(250, 250, 247, 0.72);
+        min-height: 29px;
+      }
+
+      #quote-error {
+        align-items: center;
+        color: #f5f1e8;
+        display: none;
+        flex: 1;
+        font: 1rem/1.5 Georgia, serif;
+        justify-content: center;
+        max-width: 460px;
+        text-align: center;
+      }
+
+      #quote-error.is-visible {
+        display: flex;
+      }
+
+      #quote-error a {
+        color: #f2a35b;
+      }
+
+      #friend-prank {
+        bottom: 16px;
+        display: block;
+        left: clamp(14px, 3vw, 36px);
+        opacity: 0;
+        pointer-events: none;
+        position: fixed;
+        transform: translate3d(0, calc(100% + 32px), 0) scale(0.88);
+        transform-origin: 50% 100%;
+        transition:
+          opacity 0.25s ease-out,
+          transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+          visibility 0s linear 0.72s;
+        visibility: hidden;
+        width: auto;
+        z-index: 20;
+      }
+
+      #friend-prank.is-visible {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        transition-delay: 0s;
+        visibility: visible;
+      }
+
+      #friend-prank img {
+        aspect-ratio: 4 / 5;
+        display: block;
+        height: min(22svh, 230px);
+        object-fit: cover;
+        object-position: center 42%;
+        width: auto;
+      }
+
+      @media (max-width: 560px) {
+        #quote-app {
+          padding-inline: 10px;
+        }
+
+        #quote-sheet {
+          max-height: none;
+          width: 100%;
+        }
+
+        #quote-toolbar {
+          padding-bottom: 6px;
+        }
+
+        #friend-prank {
+          bottom: 12px;
+          left: 12px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #friend-prank {
+          transition: opacity 0.2s ease-out;
+        }
+      }
+      /* Text lines follow the image mask; no extra surfaces cover the artwork. */
+      #quote-sheet { width: min(100%, 690px, calc((100svh - 110px) * .75)); max-height: none; }
+      #quote-sheet::before { content: none; }
+      #quote-sheet.bg-29 { background-color: #f5f1e8; --quote-ink: #302a24; }
+      #quote-copy { inset: 0; width: 100%; max-width: none; padding: 0; border: 0; background: none; transform: none; }
+      #quote-text { position: absolute; inset: 0; margin: 0; font-size: inherit; letter-spacing: 0; }
+      #quote-text::before { content: none; }
+      #quote-source { display: none; }
+      .artwork-line { position: absolute; display: block; white-space: pre; text-align: left; letter-spacing: 0; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <main id="quote-app">
+      <div id="quote-stage">
+        <article id="quote-sheet" aria-labelledby="quote-text">
+          <div id="quote-content">
+            <div class="quote-copy" id="quote-copy">
+              <blockquote id="quote-text"></blockquote>
+              <div id="quote-source" hidden>
+                <span id="quote-source-label">From</span>
+                <a id="quote-source-link" target="_blank" rel="noopener noreferrer"></a>
+              </div>
+            </div>
+          </div>
+        </article>
+        <div id="quote-error" role="status">
+          This shared quote link is missing its passage. <a href="index.html">Return to the reader</a>.
+        </div>
+      </div>
+      <nav id="quote-toolbar" aria-label="Quote actions">
+        <button class="quote-tool" id="copy-link" type="button">Copy link</button>
+        <button class="quote-tool" id="change-background" type="button">Change background</button>
+        <span id="quote-status" aria-live="polite"></span>
+      </nav>
+    </main>
+
+    <div id="friend-prank" hidden aria-hidden="true">
+      <img src="Images/friend-prank.jpg" alt="Surprise face" />
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var PRANK_KEY = "ee7-friend-prank-enabled";
+        var PRANK_DELAY = 60 * 1000;
+        var BACKGROUND_COUNT = 29;
+        var url = new URL(window.location.href);
+        var prankEnabled = false;
+        var prankTimer = null;
+        var prankVisible = false;
+        var backgroundIndex = 0;
+        var fitFrame = null;
+        var passage = "";
+        var prankNode = document.getElementById("friend-prank");
+        var sheet = document.getElementById("quote-sheet");
+        var copy = document.getElementById("quote-copy");
+        var quoteText = document.getElementById("quote-text");
+        var source = document.getElementById("quote-source");
+        var sourceLink = document.getElementById("quote-source-link");
+        var copyLink = document.getElementById("copy-link");
+        var changeBackground = document.getElementById("change-background");
+        var status = document.getElementById("quote-status");
+        var error = document.getElementById("quote-error");
+
+        function closePrankParam() {
+          var value = url.searchParams.get("p");
+          try {
+            prankEnabled = localStorage.getItem(PRANK_KEY) === "true";
+          } catch (e) {}
+
+          if (value === "true") {
+            prankEnabled = true;
+            try {
+              localStorage.setItem(PRANK_KEY, "true");
+            } catch (e2) {}
+          } else if (value === "off" || value === "false") {
+            prankEnabled = false;
+            try {
+              localStorage.removeItem(PRANK_KEY);
+            } catch (e3) {}
+          } else if (!prankEnabled) {
+            return;
+          }
+
+          if (value === "true" || value === "off" || value === "false") {
+            url.searchParams.delete("p");
+            window.history.replaceState(
+              window.history.state,
+              "",
+              url.pathname + url.search + url.hash,
+            );
+          }
+        }
+
+        function revealPrank() {
+          prankTimer = null;
+          if (!prankEnabled || prankVisible) return;
+          prankVisible = true;
+          prankNode.removeAttribute("hidden");
+          prankNode.setAttribute("aria-hidden", "false");
+          window.requestAnimationFrame(function () {
+            prankNode.classList.add("is-visible");
+          });
+        }
+
+        function schedulePrank() {
+          if (!prankEnabled || prankTimer !== null || prankVisible) return;
+          prankTimer = window.setTimeout(revealPrank, PRANK_DELAY);
+        }
+
+        function sharedQuote() {
+          var payload = window.EE7Quotes
+            ? window.EE7Quotes.decodeSharePayload(url.searchParams.get("q"))
+            : null;
+          if (payload) return payload;
+
+          var id = url.searchParams.get("id");
+          if (!id || !window.EE7Quotes) return null;
+          var items = window.EE7Quotes.readQuotes();
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].id === id) return items[i];
+          }
+          return null;
+        }
+
+        function setQuoteSource(payload) {
+          if (!payload.href) return;
+          sourceLink.href = payload.href;
+          sourceLink.textContent = payload.title || payload.href;
+          source.removeAttribute("hidden");
+        }
+
+        function prepareShareLinks() {
+          var cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("p");
+          copyLink.setAttribute("data-share-url", cleanUrl.href);
+        }
+
+        function fitQuoteCopy() {
+          if (sheet.hidden || !passage) return;
+          if (fitFrame !== null) cancelAnimationFrame(fitFrame);
+          fitFrame = requestAnimationFrame(function () {
+            fitFrame = null;
+            window.layoutQuoteArtwork(backgroundIndex, passage, sourceLink.textContent, sourceLink.getAttribute("href"));
+          });
+        }
+
+        function backgroundClass(index) {
+          return "bg-" + String(index + 1).padStart(2, "0");
+        }
+
+        function applyBackground(index, announce) {
+          backgroundIndex = (index + BACKGROUND_COUNT) % BACKGROUND_COUNT;
+          sheet.className = backgroundClass(backgroundIndex);
+          copy.className = "quote-copy";
+          if (announce) {
+            status.textContent =
+              "Background " + (backgroundIndex + 1) + " of " + BACKGROUND_COUNT;
+          }
+          fitQuoteCopy();
+        }
+
+        function copyText(value) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(value);
+          }
+          return new Promise(function (resolve, reject) {
+            var field = document.createElement("textarea");
+            field.value = value;
+            field.setAttribute("readonly", "true");
+            field.style.position = "fixed";
+            field.style.opacity = "0";
+            document.body.appendChild(field);
+            field.select();
+            try {
+              document.execCommand("copy");
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+            document.body.removeChild(field);
+          });
+        }
+
+        function render() {
+          var payload = sharedQuote();
+          if (!payload) {
+            sheet.hidden = true;
+            document.getElementById("quote-toolbar").hidden = true;
+            error.classList.add("is-visible");
+            return;
+          }
+
+          passage = payload.text;
+          setQuoteSource(payload);
+          backgroundIndex = Math.floor(Math.random() * BACKGROUND_COUNT);
+          applyBackground(backgroundIndex, false);
+          prepareShareLinks();
+          document.title = (payload.title || "Shared quote") + " - EE 7+";
+          fitQuoteCopy();
+        }
+
+        copyLink.addEventListener("click", function () {
+          var value = this.getAttribute("data-share-url");
+          if (!value) return;
+          copyText(value)
+            .then(function () {
+              status.textContent = "Link copied";
+            })
+            .catch(function () {
+              status.textContent = "Copy failed. Use the address bar to share it.";
+            });
+        });
+
+        changeBackground.addEventListener("click", function () {
+          applyBackground(backgroundIndex + 1, true);
+        });
+
+        closePrankParam();
+        render();
+        schedulePrank();
+        window.addEventListener("resize", fitQuoteCopy);
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(fitQuoteCopy);
+        }
+
+      })();
+    </script>
+  </body>
+</html>

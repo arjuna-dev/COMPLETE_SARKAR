@@ -1598,8 +1598,8 @@
         var READER_FONT_STEP = 0.1;
         var READER_MOBILE_BREAKPOINT = 700;
         var FRIEND_PRANK_KEY = "ee7-friend-prank-enabled";
-        var FRIEND_PRANK_PARAM = "ee7-friend-prank";
-        var FRIEND_PRANK_TOKEN = "27697e7faa7cfcf2dfef9224e343a058";
+        var FRIEND_PRANK_PARAM = "p";
+        var FRIEND_PRANK_VALUE = "true";
         var FRIEND_PRANK_DISABLE_VALUE = "off";
         var FRIEND_PRANK_DELAY = 60 * 1000;
         var TOPBAR_FULL_HEIGHT = 38;
@@ -1641,6 +1641,9 @@
         var friendPrankEnabled = false;
         var friendPrankVisible = false;
 
+        // Private prank switch. There is intentionally no public UI link for it.
+        // Share a URL with ?p=true to arm the prank, or use ?p=off to disarm it.
+
         try {
           friendPrankEnabled = localStorage.getItem(FRIEND_PRANK_KEY) === "true";
         } catch (e) {}
@@ -1649,10 +1652,13 @@
           try {
             var url = new URL(window.location.href);
             var value = url.searchParams.get(FRIEND_PRANK_PARAM);
-            if (value === FRIEND_PRANK_TOKEN) {
+            if (value === FRIEND_PRANK_VALUE) {
               localStorage.setItem(FRIEND_PRANK_KEY, "true");
               friendPrankEnabled = true;
-            } else if (value === FRIEND_PRANK_DISABLE_VALUE) {
+            } else if (
+              value === FRIEND_PRANK_DISABLE_VALUE ||
+              value === "false"
+            ) {
               localStorage.removeItem(FRIEND_PRANK_KEY);
               friendPrankEnabled = false;
             } else {
@@ -2325,27 +2331,6 @@
           navigateFrame(href, { fromHistory: true });
         }
 
-        // ── Frame persistence (survives hot-reload / page refresh) ─────
-        (function () {
-          var fromAddress = frameUrlFromAddress();
-          if (fromAddress) {
-            frame.src = fromAddress;
-            return;
-          }
-
-          var last = null;
-          try {
-            last = sessionStorage.getItem("ee7-last-frame");
-          } catch (e) {}
-          if (last && last !== "about:blank") {
-            var lastUrl = resolveFrameUrl(last);
-            if (lastUrl) {
-              frame.src = lastUrl.href;
-              syncAddressBar(lastUrl.href, true);
-            }
-          }
-        })();
-
         // Intercept same-origin links inside the iframe so every view uses
         // the shell route, including links and anchors inside discourses.
         function bindFrameNavigation() {
@@ -2404,6 +2389,31 @@
           syncReaderQuotes(this.contentDocument);
           syncReaderUi();
         });
+
+        // ── Frame persistence (survives hot-reload / page refresh) ─────
+        // Register the load listener before restoring a deep-linked frame
+        // URL. Otherwise a fast local file:// load can finish before quote
+        // selection is bound to the discourse document.
+        (function () {
+          var fromAddress = frameUrlFromAddress();
+          if (fromAddress) {
+            frame.src = fromAddress;
+            return;
+          }
+
+          var last = null;
+          try {
+            last = sessionStorage.getItem("ee7-last-frame");
+          } catch (e) {}
+          if (last && last !== "about:blank") {
+            var lastUrl = resolveFrameUrl(last);
+            if (lastUrl) {
+              frame.src = lastUrl.href;
+              syncAddressBar(lastUrl.href, true);
+            }
+          }
+        })();
+
         syncCurrentFavoriteButton();
         updateQuotesCount();
         updateCurrentlyReadingCount();
@@ -2600,6 +2610,23 @@
 
         // Handle navigation requests posted from the search iframe
         window.addEventListener("message", function (e) {
+          if (e.data && e.data.type === "ee7-quote-event") {
+            updateQuotesCount();
+            if (e.data.event === "saved") {
+              showToast(
+                e.data.alreadySaved ? "Quote already saved" : "Quote saved",
+              );
+            } else if (e.data.event === "removed") {
+              showToast("Quote removed");
+            } else if (e.data.event === "limit") {
+              showToast(
+                "Quotes can be up to " +
+                  String(e.data.limit || window.EE7Quotes.maxQuoteWords) +
+                  " words",
+              );
+            }
+            return;
+          }
           if (e.data && e.data.type === "ee7-quotes-changed") {
             updateQuotesCount();
             var quoteDoc = activeReaderDocument();

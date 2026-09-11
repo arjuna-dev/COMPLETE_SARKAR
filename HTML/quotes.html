@@ -10,38 +10,46 @@
       :root[data-theme="dusk"] {
         --bg: #2e2a24;
         --surface: #352f28;
+        --surface-raised: #3d362e;
         --text: #ddd5c8;
         --text-dim: #8c8078;
         --accent: #e07820;
         --accent-dim: rgba(224, 120, 32, 0.18);
         --border: #4a3c30;
+        --danger: #efb2a7;
       }
       :root[data-theme="light"] {
         --bg: #f7f4f0;
         --surface: #ffffff;
+        --surface-raised: #fffaf4;
         --text: #1a160e;
         --text-dim: #8f8478;
         --accent: #c06010;
         --accent-dim: rgba(192, 96, 16, 0.1);
         --border: #d5cfc6;
+        --danger: #a33d2c;
       }
       :root[data-theme="dark"] {
         --bg: #17191b;
         --surface: #222629;
+        --surface-raised: #2a2f32;
         --text: #f2f3f0;
         --text-dim: #aeb5b8;
         --accent: #ef8b32;
         --accent-dim: rgba(239, 139, 50, 0.16);
         --border: #343a3d;
+        --danger: #ffc5bb;
       }
       :root[data-theme="dawn"] {
         --bg: #d96720;
         --surface: #ed7d2c;
+        --surface-raised: #f08b42;
         --text: #fff4e5;
         --text-dim: #ffe0be;
         --accent: #fff7e8;
         --accent-dim: rgba(255, 247, 232, 0.16);
         --border: rgba(82, 28, 6, 0.28);
+        --danger: #fff0d5;
       }
 
       *,
@@ -70,8 +78,12 @@
         text-decoration: underline;
       }
 
+      button {
+        font: inherit;
+      }
+
       #page {
-        max-width: 820px;
+        max-width: 880px;
         margin: 0 auto;
         padding: 50px 24px 64px;
       }
@@ -153,9 +165,9 @@
       .quote-card-footer {
         align-items: center;
         border-top: 1px solid var(--border);
-        display: flex;
+        display: grid;
         gap: 12px;
-        justify-content: space-between;
+        grid-template-columns: minmax(0, 1fr) auto;
         margin-top: 14px;
         padding-top: 10px;
       }
@@ -169,20 +181,49 @@
         white-space: nowrap;
       }
 
+      .quote-card-actions {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .quote-open {
+        border: 1px solid var(--accent);
+        border-radius: 5px;
+        font-size: 8pt;
+        line-height: 1;
+        padding: 7px 9px;
+        white-space: nowrap;
+      }
+
+      .quote-open {
+        background: var(--accent);
+        color: #fffaf3;
+      }
+
+      .quote-open:hover,
+      .quote-open:focus-visible {
+        background: var(--text);
+        border-color: var(--text);
+        color: var(--bg);
+        text-decoration: none;
+      }
+
       .quote-delete {
         background: transparent;
         border: 0;
         color: var(--text-dim);
         cursor: pointer;
         flex-shrink: 0;
-        font: inherit;
         font-size: 8pt;
         padding: 3px 0;
       }
 
       .quote-delete:hover,
       .quote-delete:focus-visible {
-        color: var(--text);
+        color: var(--danger);
       }
 
       .quotes-empty {
@@ -191,13 +232,89 @@
         padding: 24px 0;
       }
 
-      @media (max-width: 560px) {
+      #delete-modal {
+        align-items: center;
+        display: grid;
+        inset: 0;
+        justify-items: center;
+        padding: 20px;
+        position: fixed;
+        z-index: 30;
+      }
+
+      #delete-modal[hidden] {
+        display: none;
+      }
+
+      .delete-modal-backdrop {
+        background: rgba(0, 0, 0, 0.58);
+        inset: 0;
+        position: absolute;
+      }
+
+      .delete-modal-card {
+        background: var(--surface-raised);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: 0 18px 56px rgba(0, 0, 0, 0.34);
+        max-width: 390px;
+        padding: 22px;
+        position: relative;
+        width: 100%;
+      }
+
+      .delete-modal-title {
+        font-size: 13pt;
+        font-weight: 700;
+        margin: 0 0 7px;
+      }
+
+      .delete-modal-copy {
+        color: var(--text-dim);
+        margin: 0;
+      }
+
+      .delete-modal-actions {
+        display: flex;
+        gap: 9px;
+        justify-content: flex-end;
+        margin-top: 20px;
+      }
+
+      .modal-btn {
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        cursor: pointer;
+        padding: 8px 12px;
+      }
+
+      .modal-btn--cancel {
+        background: transparent;
+        color: var(--text);
+      }
+
+      .modal-btn--confirm {
+        background: var(--danger);
+        border-color: var(--danger);
+        color: var(--bg);
+      }
+
+      @media (max-width: 700px) {
         #page {
           padding: 34px 16px 48px;
         }
 
         .quote-card {
           padding: 14px 14px 11px;
+        }
+
+        .quote-card-footer {
+          align-items: stretch;
+          grid-template-columns: 1fr;
+        }
+
+        .quote-card-actions {
+          justify-content: flex-start;
         }
       }
     </style>
@@ -212,14 +329,33 @@
       <div id="list"></div>
     </main>
 
+    <div id="delete-modal" hidden role="dialog" aria-modal="true" aria-labelledby="delete-modal-title" aria-describedby="delete-modal-copy">
+      <div class="delete-modal-backdrop" data-modal-close></div>
+      <section class="delete-modal-card">
+        <h2 class="delete-modal-title" id="delete-modal-title">Delete this quote?</h2>
+        <p class="delete-modal-copy" id="delete-modal-copy">This removes the saved passage from this browser and clears its reader highlight.</p>
+        <div class="delete-modal-actions">
+          <button class="modal-btn modal-btn--cancel" id="delete-cancel" type="button">Cancel</button>
+          <button class="modal-btn modal-btn--confirm" id="delete-confirm" type="button">Delete quote</button>
+        </div>
+      </section>
+    </div>
+
     <script>
       (function () {
         "use strict";
 
         var THEME_KEY = "ee7-theme";
+        var list = document.getElementById("list");
+        var status = document.getElementById("status");
+        var modal = document.getElementById("delete-modal");
+        var cancelButton = document.getElementById("delete-cancel");
+        var confirmButton = document.getElementById("delete-confirm");
+        var pendingDeleteId = "";
+        var restoreFocus = null;
 
         function applyTheme(theme) {
-          document.documentElement.setAttribute("data-theme", theme);
+          document.documentElement.setAttribute("data-theme", theme || "dusk");
         }
 
         try {
@@ -235,11 +371,10 @@
         });
 
         function render() {
-          var list = document.getElementById("list");
           var items = window.EE7Quotes
             ? window.EE7Quotes.renderQuotesPage(list)
             : [];
-          document.getElementById("status").textContent = items.length
+          status.textContent = items.length
             ? items.length + " saved quote" + (items.length === 1 ? "" : "s")
             : "";
         }
@@ -250,44 +385,72 @@
           var expanded = card.classList.toggle("is-expanded");
           preview.setAttribute("aria-expanded", expanded ? "true" : "false");
           var label = preview.querySelector(".quote-expand-label");
-          if (label) {
-            label.textContent = expanded ? "Show less" : "Show full quote";
+          if (label) label.textContent = expanded ? "Show less" : "Show full quote";
+        }
+
+        function closeDeleteModal() {
+          pendingDeleteId = "";
+          modal.setAttribute("hidden", "true");
+          if (restoreFocus && restoreFocus.focus) restoreFocus.focus();
+          restoreFocus = null;
+        }
+
+        function openDeleteModal(id, trigger) {
+          pendingDeleteId = id || "";
+          restoreFocus = trigger || null;
+          if (!pendingDeleteId) return;
+          modal.removeAttribute("hidden");
+          window.requestAnimationFrame(function () {
+            cancelButton.focus();
+          });
+        }
+
+        function confirmDelete() {
+          if (!pendingDeleteId || !window.EE7Quotes) {
+            closeDeleteModal();
+            return;
+          }
+          var removed = window.EE7Quotes.deleteQuote(pendingDeleteId);
+          closeDeleteModal();
+          if (removed) {
+            render();
+            status.textContent = "Quote deleted";
           }
         }
 
-        document.getElementById("list").addEventListener("click", function (event) {
-          var preview = event.target.closest("[data-quote-expand]");
-          if (preview) {
-            toggleQuotePreview(preview);
-            return;
-          }
-
+        list.addEventListener("click", function (event) {
           var deleteButton = event.target.closest("[data-quote-delete]");
           if (deleteButton) {
             event.preventDefault();
             event.stopPropagation();
-            if (window.EE7Quotes) {
-              window.EE7Quotes.deleteQuote(deleteButton.getAttribute("data-quote-delete"));
-              render();
-            }
+            openDeleteModal(
+              deleteButton.getAttribute("data-quote-delete"),
+              deleteButton,
+            );
             return;
           }
 
-          var link = event.target.closest("a.quote-source[href]");
-          if (!link || window.parent === window) return;
-          event.preventDefault();
-          window.parent.postMessage(
-            { type: "ee7-navigate", href: link.getAttribute("href") },
-            "*",
-          );
+          var preview = event.target.closest("[data-quote-expand]");
+          if (preview) toggleQuotePreview(preview);
         });
 
-        document.getElementById("list").addEventListener("keydown", function (event) {
+        list.addEventListener("keydown", function (event) {
           if (event.key !== "Enter" && event.key !== " ") return;
           var preview = event.target.closest("[data-quote-expand]");
           if (!preview) return;
           event.preventDefault();
           toggleQuotePreview(preview);
+        });
+
+        modal.addEventListener("click", function (event) {
+          if (event.target.closest("[data-modal-close]")) closeDeleteModal();
+        });
+        cancelButton.addEventListener("click", closeDeleteModal);
+        confirmButton.addEventListener("click", confirmDelete);
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && !modal.hasAttribute("hidden")) {
+            closeDeleteModal();
+          }
         });
 
         window.addEventListener("storage", function (event) {

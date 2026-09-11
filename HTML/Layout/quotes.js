@@ -6,6 +6,9 @@
   var STYLE_ID = "ee7-quotes-style";
   var MENU_ID = "ee7-quote-selection-menu";
   var MAX_QUOTE_WORDS = 2000;
+  var SHARE_PAGE = "quote.html";
+  var SHARE_PARAM = "q";
+  var SHARE_VERSION = 1;
 
   var boundDocument = null;
   var boundWindow = null;
@@ -28,6 +31,25 @@
 
   function normalizeQuoteText(value) {
     return toStringSafe(value).replace(/\s+/g, " ").trim();
+  }
+
+  function encodeBase64Url(value) {
+    var binary = unescape(encodeURIComponent(value));
+    return btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+  }
+
+  function decodeBase64Url(value) {
+    var normalized = toStringSafe(value).replace(/-/g, "+").replace(/_/g, "/");
+    while (normalized.length % 4) normalized += "=";
+    var binary = atob(normalized);
+    var encoded = "";
+    for (var i = 0; i < binary.length; i++) {
+      encoded += "%" + ("00" + binary.charCodeAt(i).toString(16)).slice(-2);
+    }
+    return decodeURIComponent(encoded);
   }
 
   function quoteWordCount(value) {
@@ -729,6 +751,14 @@
       var state = pendingSelection;
       var result = null;
       if (state.action === "remove") {
+        var confirmed = true;
+        try {
+          confirmed = window.confirm("Remove this saved quote?");
+        } catch (e) {}
+        if (!confirmed) {
+          removeSelectionMenu();
+          return;
+        }
         var removed = deleteQuote(state.quoteId);
         if (removed) refreshReaderHighlights(state.doc);
         removeSelectionMenu();
@@ -906,6 +936,43 @@
     return true;
   }
 
+  function quoteSharePayload(quote) {
+    quote = quote || {};
+    return {
+      v: SHARE_VERSION,
+      id: toStringSafe(quote.id),
+      text: normalizeQuoteText(quote.text),
+      title: toStringSafe(quote.title).trim(),
+      href: normalizeHref(quote.href),
+    };
+  }
+
+  function getQuoteShareUrl(quote) {
+    var url = new URL(SHARE_PAGE, document.baseURI);
+    url.searchParams.set(
+      SHARE_PARAM,
+      encodeBase64Url(JSON.stringify(quoteSharePayload(quote))),
+    );
+    return url.href;
+  }
+
+  function decodeQuoteSharePayload(value) {
+    if (!value) return null;
+    try {
+      var parsed = JSON.parse(decodeBase64Url(value));
+      var text = normalizeQuoteText(parsed && parsed.text);
+      if (!text) return null;
+      return {
+        id: toStringSafe(parsed && parsed.id),
+        text: text,
+        title: toStringSafe(parsed && parsed.title).trim() || "Saved passage",
+        href: normalizeHref(parsed && parsed.href),
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
   function renderQuotesPage(container, emptyMessage) {
     var items = readQuotes();
     if (!container) return items;
@@ -923,6 +990,7 @@
     var html = "";
     for (var i = 0; i < items.length; i++) {
       var quote = items[i];
+      var shareUrl = getQuoteShareUrl(quote);
       html +=
         '<article class="quote-card" data-quote-id="' +
         escapeHtml(quote.id) +
@@ -939,13 +1007,54 @@
         '" target="Client">' +
         escapeHtml(quote.title) +
         "</a>" +
+        '<div class="quote-card-actions">' +
+        '<a class="quote-open" href="' +
+        escapeHtml(shareUrl) +
+        '" target="_blank" rel="noopener noreferrer">Open quote</a>' +
         '<button class="quote-delete" type="button" data-quote-delete="' +
         escapeHtml(quote.id) +
         '" aria-label="Delete quote">Delete</button>' +
+        "</div>" +
         "</div></article>";
     }
     container.innerHTML = html;
     return items;
+  }
+
+  function autoBindEmbeddedFileReader() {
+    if (
+      !window.parent ||
+      window.parent === window ||
+      window.location.protocol !== "file:" ||
+      !isReaderDocument(document)
+    ) {
+      return;
+    }
+
+    function notifyParent(eventName, payload) {
+      try {
+        window.parent.postMessage(
+          Object.assign(
+            { type: "ee7-quote-event", event: eventName },
+            payload || {},
+          ),
+          "*",
+        );
+      } catch (e) {}
+    }
+
+    bindReaderDocument(document, {
+      title: getReaderTitle(document),
+      onSaved: function (quote, alreadySaved) {
+        notifyParent("saved", { alreadySaved: !!alreadySaved });
+      },
+      onRemoved: function () {
+        notifyParent("removed");
+      },
+      onLimit: function (limit) {
+        notifyParent("limit", { limit: limit });
+      },
+    });
   }
 
   injectStyle(document);
@@ -956,6 +1065,8 @@
     readQuotes: readQuotes,
     writeQuotes: writeQuotes,
     deleteQuote: deleteQuote,
+    getShareUrl: getQuoteShareUrl,
+    decodeSharePayload: decodeQuoteSharePayload,
     bindReaderDocument: bindReaderDocument,
     unbindReaderDocument: unbindReaderDocument,
     refreshReaderHighlights: refreshReaderHighlights,
@@ -973,4 +1084,6 @@
       } catch (e) {}
     }
   });
+
+  autoBindEmbeddedFileReader();
 })();
