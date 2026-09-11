@@ -6,7 +6,10 @@
     const node = document.getElementById('quote-text');
     const mask = QuoteMasks[index];
     const width = sheet.clientWidth, height = sheet.clientHeight;
-    const family = getComputedStyle(sheet).getPropertyValue('--quote-display').trim();
+    const styles = getComputedStyle(sheet);
+    const family = styles.getPropertyValue('--quote-display').trim();
+    const configuredLeading = parseFloat(styles.getPropertyValue('--quote-leading'));
+    const leadingRatio = Number.isFinite(configuredLeading) ? configuredLeading : 1.3;
     const sx = width / mask.width, sy = height / mask.height;
     function slots(y, lineHeight) {
       const first = Math.floor(y / sy), last = Math.ceil((y + lineHeight) / sy);
@@ -21,7 +24,7 @@
       return runs;
     }
     function compose(size) {
-      const leading = size * 1.3;
+      const leading = size * leadingRatio;
       const parts = [{text, font: '500 '+size+'px '+family, size, source:false}];
       if (title) parts.push({text:title, font: '400 '+(size*.65)+'px Tahoma', size:size*.65, source:true});
       let y = height * .045, previousX = null;
@@ -58,7 +61,7 @@
       if(line.source && href){span.href=href;span.target='_blank';span.rel='noopener noreferrer';}
       span.className='artwork-line';
       span.textContent=line.text;
-      Object.assign(span.style,{left:line.x+'px',top:line.y+'px',font:line.font,lineHeight:(low*1.3)+'px',width:line.width+'px'});
+      Object.assign(span.style,{left:line.x+'px',top:line.y+'px',font:line.font,lineHeight:(low*leadingRatio)+'px',width:line.width+'px'});
       fragment.appendChild(span);
     }
     node.appendChild(fragment);

@@ -965,7 +965,7 @@
       return {
         id: toStringSafe(parsed && parsed.id),
         text: text,
-        title: toStringSafe(parsed && parsed.title).trim() || "Saved passage",
+        title: toStringSafe(parsed && parsed.title).trim(),
         href: normalizeHref(parsed && parsed.href),
       };
     } catch (e) {

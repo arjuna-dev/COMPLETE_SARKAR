@@ -405,17 +405,83 @@
       }
 
       #quote-sheet.bg-29 {
-        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
-        --quote-ink: #f6e9bd;
-        --quote-left: 8%;
-        --quote-top: 12%;
-        --quote-width: 43%;
-        --quote-size: clamp(1.3rem, 3vw, 2.7rem);
-        --quote-leading: 1.14;
-        background-color: #16120e;
-        background-image: url("Images/quote-bg-29.png");
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #263d60;
+        --quote-leading: 1.1;
+        background-image: url("Images/quote-bg-29.webp");
         background-position: center;
-        background-size: cover;
+      }
+
+      #quote-sheet.bg-30 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #392821;
+        --quote-leading: 1.14;
+        background-image: url("Images/quote-bg-30.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-31 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #294638;
+        --quote-leading: 1.1;
+        background-image: url("Images/quote-bg-31.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-32 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #4d2d47;
+        --quote-leading: 1.14;
+        background-image: url("Images/quote-bg-32.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-33 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #302c27;
+        --quote-leading: 1.08;
+        background-image: url("Images/quote-bg-33.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-34 {
+        --quote-display: "Arial Narrow", "Trebuchet MS", sans-serif;
+        --quote-ink: #2c3b33;
+        --quote-leading: 1.12;
+        background-image: url("Images/quote-bg-34.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-35 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #46263e;
+        --quote-leading: 1.1;
+        background-image: url("Images/quote-bg-35.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-36 {
+        --quote-display: Georgia, "Times New Roman", serif;
+        --quote-ink: #2d4b3b;
+        --quote-leading: 1.1;
+        background-image: url("Images/quote-bg-36.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-37 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #283d68;
+        --quote-leading: 1.14;
+        background-image: url("Images/quote-bg-37.webp");
+        background-position: center;
+      }
+
+      #quote-sheet.bg-38 {
+        --quote-display: "Trebuchet MS", Tahoma, sans-serif;
+        --quote-ink: #51304e;
+        --quote-leading: 1.14;
+        background-image: url("Images/quote-bg-38.webp");
+        background-position: center;
       }
 
       #quote-content {
@@ -543,7 +609,6 @@
       /* Text lines follow the image mask; no extra surfaces cover the artwork. */
       #quote-sheet { width: min(100%, 690px, calc((100svh - 110px) * .75)); max-height: none; }
       #quote-sheet::before { content: none; }
-      #quote-sheet.bg-29 { background-color: #f5f1e8; --quote-ink: #302a24; }
       #quote-copy { inset: 0; width: 100%; max-width: none; padding: 0; border: 0; background: none; transform: none; }
       #quote-text { position: absolute; inset: 0; margin: 0; font-size: inherit; letter-spacing: 0; }
       #quote-text::before { content: none; }
@@ -587,7 +652,7 @@
 
         var PRANK_KEY = "ee7-friend-prank-enabled";
         var PRANK_DELAY = 60 * 1000;
-        var BACKGROUND_COUNT = 29;
+        var BACKGROUND_COUNT = 38;
         var url = new URL(window.location.href);
         var prankEnabled = false;
         var prankTimer = null;

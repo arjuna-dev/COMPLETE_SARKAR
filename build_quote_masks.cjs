@@ -2,8 +2,8 @@
 const { execFileSync } = require('node:child_process');
 const W = 120, H = 160;
 const masks = [];
-for (let n = 1; n <= 29; n++) {
-  const file = `HTML/Images/quote-bg-${String(n).padStart(2, '0')}.${n === 29 ? 'png' : 'webp'}`;
+for (let n = 1; n <= 38; n++) {
+  const file = `HTML/Images/quote-bg-${String(n).padStart(2, '0')}.webp`;
   const pixels = execFileSync('magick', [file, '-background', '#f5f1e8', '-alpha', 'remove', '-resize', `${W}x${H}^`, '-gravity', 'center', '-extent', `${W}x${H}`, '-colorspace', 'Gray', '-depth', '8', 'gray:-']);
   const sorted = [...pixels].sort((a,b) => a-b);
   const threshold = Math.max(185, sorted[Math.floor(sorted.length * 0.85)] - 22);
