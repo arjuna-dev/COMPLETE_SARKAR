@@ -660,6 +660,7 @@
         var backgroundIndex = 0;
         var fitFrame = null;
         var passage = "";
+        var author = "";
         var prankNode = document.getElementById("friend-prank");
         var sheet = document.getElementById("quote-sheet");
         var copy = document.getElementById("quote-copy");
@@ -751,7 +752,13 @@
           if (fitFrame !== null) cancelAnimationFrame(fitFrame);
           fitFrame = requestAnimationFrame(function () {
             fitFrame = null;
-            window.layoutQuoteArtwork(backgroundIndex, passage, sourceLink.textContent, sourceLink.getAttribute("href"));
+            window.layoutQuoteArtwork(
+              backgroundIndex,
+              passage,
+              author,
+              sourceLink.textContent,
+              sourceLink.getAttribute("href"),
+            );
           });
         }
 
@@ -1002,6 +1009,7 @@
           }
 
           passage = payload.text;
+          author = payload.author || "";
           setQuoteSource(payload);
           backgroundIndex = Math.floor(Math.random() * BACKGROUND_COUNT);
           applyBackground(backgroundIndex, false);

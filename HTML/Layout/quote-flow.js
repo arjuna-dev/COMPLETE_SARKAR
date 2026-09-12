@@ -1,7 +1,7 @@
 /* Pretext 0.0.9 is bundled locally. Masks are generated from the actual artwork. */
 (function () {
   'use strict';
-  window.layoutQuoteArtwork = function (index, text, title, href) {
+  window.layoutQuoteArtwork = function (index, text, author, title, href) {
     const sheet = document.getElementById('quote-sheet');
     const node = document.getElementById('quote-text');
     const mask = QuoteMasks[index];
@@ -25,14 +25,15 @@
     }
     function compose(size) {
       const leading = size * leadingRatio;
-      const parts = [{text, font: '500 '+size+'px '+family, size, source:false}];
-      if (title) parts.push({text:title, font: '400 '+(size*.65)+'px Tahoma', size:size*.65, source:true});
+      const parts = [{text, font: '500 '+size+'px '+family, size, source:false, gap:0}];
+      if (author) parts.push({text:author, font: 'italic 600 '+(size*.72)+'px '+family, size:size*.72, source:false, gap:size*.7});
+      if (title) parts.push({text:title, font: '400 '+(size*.58)+'px Tahoma', size:size*.58, source:true, gap:size*.28});
       let y = height * .045, previousX = null;
       const lines=[];
       for (const part of parts) {
         const prepared = Pretext.prepareWithSegments(part.text, part.font);
         let cursor={segmentIndex:0,graphemeIndex:0};
-        if(part.source) y+=size*.65;
+        y+=part.gap;
         while(true) {
           if (!Pretext.layoutNextLine(prepared,cursor,1000000)) break;
           if(y+leading>=height*.96) return null;
@@ -54,7 +55,7 @@
     if(!lines) throw new Error('No usable light area in quote artwork');
     for(let i=0;i<9;i++) {const mid=(low+high)/2, candidate=compose(mid);if(candidate){low=mid;lines=candidate;}else high=mid;}
     node.replaceChildren();
-    node.setAttribute('aria-label',text+(title?' '+title:''));
+    node.setAttribute('aria-label',text+(author?' '+author:'')+(title?' '+title:''));
     const fragment=document.createDocumentFragment();
     for(const line of lines) {
       const span=document.createElement(line.source && href?'a':'span');

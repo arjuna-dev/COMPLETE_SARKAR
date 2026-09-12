@@ -9,6 +9,7 @@
   var SHARE_PAGE = "quote.html";
   var SHARE_PARAM = "q";
   var SHARE_VERSION = 1;
+  var BABA_AUTHOR = "Shri Shri Anandamurti";
 
   var boundDocument = null;
   var boundWindow = null;
@@ -76,6 +77,21 @@
     }
   }
 
+  function quoteAuthor(href, author) {
+    var normalizedHref = normalizeHref(href);
+    if (/^Discourses\//i.test(normalizedHref)) return BABA_AUTHOR;
+
+    var normalizedAuthor = toStringSafe(author).replace(/\s+/g, " ").trim();
+    if (
+      /^(?:baba|p\.?\s*r\.?\s*sarkar|prabhat ranjan sarkar|shrii? shrii? anandamurti)$/i.test(
+        normalizedAuthor,
+      )
+    ) {
+      return BABA_AUTHOR;
+    }
+    return normalizedAuthor;
+  }
+
   function finiteNumber(value, fallback) {
     var number = Number(value);
     return isFinite(number) ? number : fallback;
@@ -83,10 +99,12 @@
 
   function normalizeQuote(quote) {
     var text = normalizeQuoteText(quote && quote.text);
+    var href = normalizeHref(quote && quote.href);
     return {
       id: toStringSafe(quote && quote.id),
-      href: normalizeHref(quote && quote.href),
+      href: href,
       title: toStringSafe(quote && quote.title).trim(),
+      author: quoteAuthor(href, quote && quote.author),
       text: text,
       startOffset: Math.max(0, Math.round(finiteNumber(quote && quote.startOffset, 0))),
       endOffset: Math.max(0, Math.round(finiteNumber(quote && quote.endOffset, 0))),
@@ -701,6 +719,7 @@
       id: makeId(),
       href: href,
       title: title,
+      author: quoteAuthor(href, options && options.author),
       text: snapshot.text,
       startOffset: snapshot.startOffset,
       endOffset: snapshot.endOffset,
@@ -944,6 +963,7 @@
       text: normalizeQuoteText(quote.text),
       title: toStringSafe(quote.title).trim(),
       href: normalizeHref(quote.href),
+      author: quoteAuthor(quote.href, quote.author),
     };
   }
 
@@ -967,6 +987,7 @@
         text: text,
         title: toStringSafe(parsed && parsed.title).trim(),
         href: normalizeHref(parsed && parsed.href),
+        author: quoteAuthor(parsed && parsed.href, parsed && parsed.author),
       };
     } catch (e) {
       return null;
@@ -999,6 +1020,11 @@
         '<blockquote class="quote-text">' +
         escapeHtml(quote.text) +
         "</blockquote>" +
+        (quote.author
+          ? '<cite class="quote-author">' +
+            escapeHtml(quote.author) +
+            "</cite>"
+          : "") +
         '<span class="quote-expand-label">Show full quote</span>' +
         "</div>" +
         '<div class="quote-card-footer">' +

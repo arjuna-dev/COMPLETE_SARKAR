@@ -794,8 +794,8 @@
           "acharya_philosophy",
         ];
 
-        // Filter state. A custom filter set applies to discourse files and
-        // intentionally narrows the scope to those files.
+        // Filter state. A custom filter set narrows discourse files only;
+        // other selected source collections remain independently available.
         var _activeFilter = null;
         var _activeFilterName = null;
         var FILTER_KEY = "ee7-active-filter";
@@ -889,7 +889,7 @@
 
         function inFilter(filePath, entry) {
           if (!_activeFilter) return true;
-          if (sourceOf(entry) !== "discourses") return false;
+          if (sourceOf(entry) !== "discourses") return true;
           // entry.f is like "Discourses/Some_Discourse.html" - match on basename
           var base = filePath.split("/").pop();
           return !!_activeFilter[base];
