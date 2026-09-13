@@ -661,6 +661,15 @@
     pendingSelection = null;
   }
 
+  function isSelectionMenuTarget(target) {
+    var element = target && target.nodeType === 1 ? target : target && target.parentElement;
+    return !!(
+      element &&
+      element.closest &&
+      element.closest("." + "ee7-quote-selection-menu")
+    );
+  }
+
   function positionSelectionMenu(doc, rect) {
     if (!selectionMenu || !rect) return;
     var win = doc.defaultView;
@@ -763,6 +772,15 @@
       event.preventDefault();
       event.stopPropagation();
     });
+    menu.addEventListener("touchstart", function (event) {
+      // Keep the document-level selection handler from treating a menu tap
+      // as a new text selection. Do not preventDefault here, because Firefox
+      // needs the follow-up click event to activate the button.
+      event.stopPropagation();
+    }, { passive: true });
+    menu.addEventListener("touchend", function (event) {
+      event.stopPropagation();
+    }, { passive: true });
     menu.querySelector("button").addEventListener("click", function (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -864,7 +882,8 @@
     applyHighlights(doc);
     var config = options || {};
     var scheduleTimer = null;
-    var handleSelection = function () {
+    var handleSelection = function (event) {
+      if (event && isSelectionMenuTarget(event.target)) return;
       clearTimeout(scheduleTimer);
       scheduleTimer = setTimeout(function () {
         showSelectionMenu(doc, config);
@@ -874,14 +893,7 @@
       mouseup: handleSelection,
       touchend: handleSelection,
       mousedown: function (event) {
-        var target = event.target;
-        if (
-          !target ||
-          !target.closest ||
-          !target.closest("." + "ee7-quote-selection-menu")
-        ) {
-          removeSelectionMenu();
-        }
+        if (!isSelectionMenuTarget(event.target)) removeSelectionMenu();
       },
       keydown: function (event) {
         if (event.key === "Escape") removeSelectionMenu();
